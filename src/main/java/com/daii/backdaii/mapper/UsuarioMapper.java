@@ -1,0 +1,13 @@
+package com.daii.backdaii.mapper;
+
+import com.daii.backdaii.domain.entity.Usuario;
+import com.daii.backdaii.dto.usuario.UsuarioDTO;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+@Mapper(componentModel = "spring")
+public interface UsuarioMapper {
+
+    @Mapping(target = "rol", expression = "java(usuario.getRol().name())")
+    UsuarioDTO toDTO(Usuario usuario);
+}
