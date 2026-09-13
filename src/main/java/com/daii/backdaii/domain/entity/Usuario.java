@@ -27,6 +27,9 @@ public class Usuario {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(length = 30)
+    private String telefono;
+
     @Column(nullable = false)
     private String password;
 

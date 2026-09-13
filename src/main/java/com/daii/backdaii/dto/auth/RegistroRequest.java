@@ -1,5 +1,6 @@
 package com.daii.backdaii.dto.auth;
 
+import com.daii.backdaii.dto.medioPago.MedioPagoRequest;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,10 +21,16 @@ public class RegistroRequest {
     @Email(message = "El email debe ser válido")
     private String email;
 
+    @NotBlank(message = "El teléfono es obligatorio")
+    @Size(max = 30, message = "El teléfono no puede superar los 30 caracteres")
+    private String telefono;
+
     @NotBlank(message = "La contraseña es obligatoria")
     @Size(min = 6, max = 100, message = "La contraseña debe tener entre 6 y 100 caracteres")
     private String password;
 
     @NotBlank(message = "El rol es obligatorio")
     private String rol;
+
+    private MedioPagoRequest medioPago;
 }
