@@ -39,3 +39,9 @@ app:
     expiration-ms: 86400000
     header: Authorization
     prefix: "Bearer "
+
+  mail:
+    from: "Planta Libre <plantalibre.ar@gmail.com>"
+
+  frontend:
+    base-url: http://localhost:5173
