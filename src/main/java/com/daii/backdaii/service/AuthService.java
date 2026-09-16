@@ -15,4 +15,6 @@ public interface AuthService {
     void logout(String token);
 
     void changePassword(String email, ChangePasswordRequest request);
+
+    boolean emailAvailable(String email);
 }

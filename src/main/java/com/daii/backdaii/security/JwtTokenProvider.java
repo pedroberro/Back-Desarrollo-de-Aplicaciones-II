@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import com.daii.backdaii.domain.entity.Usuario;
 
 @Component
 public class JwtTokenProvider {
@@ -52,6 +53,10 @@ public class JwtTokenProvider {
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
+    }
+
+    public String generateToken(Usuario usuario) {
+        return generateToken(usuario.getEmail(), usuario.getId(), usuario.getRol().name());
     }
 
     public String getEmailFromToken(String token) {

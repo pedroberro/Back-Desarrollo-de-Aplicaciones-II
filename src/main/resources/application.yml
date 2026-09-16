@@ -36,6 +36,12 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET:myDefaultSecretKeyForDevelopmentOnly2024!@#$%^&*()}
-    expiration-ms: 86400000
+    expiration-ms: 900000
     header: Authorization
     prefix: "Bearer "
+  auth:
+    refresh-expiration-days: 30
+    reset-expiration-minutes: 30
+    cookie-secure: false # Usar true en producción con HTTPS.
+    reset-url: ${APP_RESET_URL:http://localhost:5173/reset-password}
+    verify-email-url: ${APP_VERIFY_EMAIL_URL:http://localhost:5173/verify-email}

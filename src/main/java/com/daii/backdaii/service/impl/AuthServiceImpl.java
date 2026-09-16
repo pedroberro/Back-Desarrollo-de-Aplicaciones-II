@@ -5,6 +5,7 @@ import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.Rol;
 import com.daii.backdaii.domain.repository.TokenBlacklistRepository;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
+import com.daii.backdaii.domain.repository.RefreshTokenRepository;
 import com.daii.backdaii.dto.auth.AuthResponse;
 import com.daii.backdaii.dto.auth.ChangePasswordRequest;
 import com.daii.backdaii.dto.auth.LoginRequest;
@@ -14,6 +15,7 @@ import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.security.JwtTokenProvider;
 import com.daii.backdaii.service.AuthService;
 import com.daii.backdaii.service.MedioPagoService;
+import com.daii.backdaii.service.EmailVerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,6 +35,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UsuarioMapper usuarioMapper;
     private final MedioPagoService medioPagoService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailVerificationService emailVerificationService;
 
     @Override
     @Transactional
@@ -43,7 +47,8 @@ public class AuthServiceImpl implements AuthService {
 
         Rol rol;
         try {
-            rol = Rol.valueOf(request.getRol().toUpperCase());
+            // Las altas públicas no pueden elevar privilegios mediante el body.
+            rol = Rol.CLIENTE;
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Rol inválido: " + request.getRol());
         }
@@ -57,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         usuario = usuarioRepository.save(usuario);
+        emailVerificationService.sendVerification(usuario);
 
         if (request.getMedioPago() != null) {
             medioPagoService.agregarTarjeta(usuario.getEmail(), request.getMedioPago());
@@ -91,7 +97,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+        usuario.setPasswordChangedAt(java.time.LocalDateTime.now().withNano(0));
         usuarioRepository.save(usuario);
+        refreshTokenRepository.deleteByUsuarioId(usuario.getId());
     }
 
     @Override
@@ -107,5 +115,10 @@ public class AuthServiceImpl implements AuthService {
                         .build());
             }
         }
+    }
+
+    @Override
+    public boolean emailAvailable(String email) {
+        return !usuarioRepository.existsByEmail(email);
     }
 }
