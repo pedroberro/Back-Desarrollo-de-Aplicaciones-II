@@ -82,6 +82,12 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean emailDisponible(String email) {
+        return !usuarioRepository.existsByEmail(normalizarEmail(email));
+    }
+
+    @Override
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(normalizarEmail(request.getEmail()), request.getPassword())

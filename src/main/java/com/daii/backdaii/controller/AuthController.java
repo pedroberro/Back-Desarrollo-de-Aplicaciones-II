@@ -2,12 +2,16 @@ package com.daii.backdaii.controller;
 
 import com.daii.backdaii.dto.auth.AuthResponse;
 import com.daii.backdaii.dto.auth.ChangePasswordRequest;
+import com.daii.backdaii.dto.auth.EmailDisponibleRequest;
 import com.daii.backdaii.dto.auth.ForgotPasswordRequest;
 import com.daii.backdaii.dto.auth.LoginRequest;
 import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.ResetPasswordRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
+import com.daii.backdaii.exception.TooManyRequestsException;
+import com.daii.backdaii.security.RateLimiter;
 import com.daii.backdaii.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.Map;
 
 @RestController
@@ -25,10 +30,23 @@ public class AuthController {
 
     private final AuthService authService;
 
+    // Tells whether an account exists, so it is capped per IP to make bulk lookups impractical.
+    private final RateLimiter emailDisponibleLimiter = new RateLimiter(20, Duration.ofMinutes(1));
+
     @PostMapping("/register")
     public ResponseEntity<UsuarioDTO> register(@Valid @RequestBody RegistroRequest request) {
         UsuarioDTO usuario = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+    }
+
+    // POST keeps the email out of URLs and access logs.
+    @PostMapping("/email-disponible")
+    public ResponseEntity<Map<String, Boolean>> emailDisponible(@Valid @RequestBody EmailDisponibleRequest request,
+                                                                HttpServletRequest httpRequest) {
+        if (!emailDisponibleLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+            throw new TooManyRequestsException("Demasiadas consultas. Probá de nuevo en un minuto.");
+        }
+        return ResponseEntity.ok(Map.of("disponible", authService.emailDisponible(request.getEmail())));
     }
 
     @PostMapping("/login")

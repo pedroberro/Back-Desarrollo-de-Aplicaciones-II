@@ -12,6 +12,8 @@ public interface AuthService {
 
     UsuarioDTO register(RegistroRequest request);
 
+    boolean emailDisponible(String email);
+
     AuthResponse login(LoginRequest request);
 
     void logout(String token);
