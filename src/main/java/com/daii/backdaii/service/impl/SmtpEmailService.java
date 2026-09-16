@@ -1,12 +1,11 @@
 package com.daii.backdaii.service.impl;
 
 import com.daii.backdaii.service.EmailService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -38,10 +37,12 @@ public class SmtpEmailService implements EmailService {
         return !mailUsername.isBlank() && !mailPassword.isBlank();
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void avisarSiNoHayMail() {
+    // Stateless: its fields are configuration fixed at startup, never per-request data.
+    // The container still owns its life cycle and calls this once the values are injected.
+    @PostConstruct
+    void avisarSiNoHayMail() {
         if (configurado()) {
-            log.info("Envío de mails activo desde {}", mailUsername);
+            log.info("[ciclo de vida] SmtpEmailService iniciado: envío de mails activo desde {}", mailUsername);
         } else {
             log.warn("MAIL_PASSWORD no está configurada: no se envían mails, los links se escriben en este log. Ver back/.env.example");
         }

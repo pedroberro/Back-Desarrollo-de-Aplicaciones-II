@@ -11,7 +11,8 @@ import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.ResetPasswordRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 import com.daii.backdaii.exception.TooManyRequestsException;
-import com.daii.backdaii.security.RateLimiter;
+import com.daii.backdaii.security.LimitadorDeIntentos;
+import com.daii.backdaii.security.LimiteIntentos;
 import com.daii.backdaii.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,7 +23,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
 import java.util.Map;
 
 @RestController
@@ -32,11 +32,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // Tells whether an account exists, so it is capped per IP to make bulk lookups impractical.
-    private final RateLimiter emailDisponibleLimiter = new RateLimiter(20, Duration.ofMinutes(1));
-    // Each call can send a mail, so it is capped per IP to avoid flooding someone's inbox.
-    private final RateLimiter forgotPasswordLimiter = new RateLimiter(5, Duration.ofMinutes(15));
-    private final RateLimiter reenviarConfirmacionLimiter = new RateLimiter(5, Duration.ofMinutes(15));
+    private final LimitadorDeIntentos limitador;
 
     @PostMapping("/register")
     public ResponseEntity<UsuarioDTO> register(@Valid @RequestBody RegistroRequest request) {
@@ -48,7 +44,7 @@ public class AuthController {
     @PostMapping("/email-disponible")
     public ResponseEntity<Map<String, Boolean>> emailDisponible(@Valid @RequestBody EmailDisponibleRequest request,
                                                                 HttpServletRequest httpRequest) {
-        if (!emailDisponibleLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+        if (!limitador.permitir(LimiteIntentos.EMAIL_DISPONIBLE, httpRequest.getRemoteAddr())) {
             throw new TooManyRequestsException("Demasiadas consultas. Probá de nuevo en un minuto.");
         }
         return ResponseEntity.ok(Map.of("disponible", authService.emailDisponible(request.getEmail())));
@@ -62,7 +58,7 @@ public class AuthController {
     @PostMapping("/reenviar-confirmacion")
     public ResponseEntity<Map<String, String>> reenviarConfirmacion(@Valid @RequestBody ReenviarConfirmacionRequest request,
                                                                     HttpServletRequest httpRequest) {
-        if (!reenviarConfirmacionLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+        if (!limitador.permitir(LimiteIntentos.REENVIAR_CONFIRMACION, httpRequest.getRemoteAddr())) {
             throw new TooManyRequestsException("Pediste demasiados links. Probá de nuevo en 15 minutos.");
         }
         authService.reenviarConfirmacion(request.getEmail());
@@ -91,7 +87,7 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
                                                               HttpServletRequest httpRequest) {
-        if (!forgotPasswordLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+        if (!limitador.permitir(LimiteIntentos.RECUPERAR_PASSWORD, httpRequest.getRemoteAddr())) {
             throw new TooManyRequestsException("Pediste demasiados links. Probá de nuevo en 15 minutos.");
         }
         authService.forgotPassword(request.getEmail());
