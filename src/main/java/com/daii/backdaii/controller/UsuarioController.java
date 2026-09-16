@@ -2,6 +2,7 @@ package com.daii.backdaii.controller;
 
 import com.daii.backdaii.dto.medioPago.MedioPagoRequest;
 import com.daii.backdaii.dto.medioPago.MedioPagoResumen;
+import com.daii.backdaii.dto.medioPago.MedioPagoUpdateRequest;
 import com.daii.backdaii.dto.usuario.UpdateMeRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 import com.daii.backdaii.service.MedioPagoService;
@@ -46,6 +47,13 @@ public class UsuarioController {
                                                              @Valid @RequestBody MedioPagoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(medioPagoService.agregarTarjeta(user.getUsername(), request));
+    }
+
+    @PutMapping("/me/medios-pago/{id}")
+    public ResponseEntity<MedioPagoResumen> actualizarMedioPago(@AuthenticationPrincipal UserDetails user,
+                                                                @PathVariable Long id,
+                                                                @Valid @RequestBody MedioPagoUpdateRequest request) {
+        return ResponseEntity.ok(medioPagoService.actualizar(user.getUsername(), id, request));
     }
 
     @DeleteMapping("/me/medios-pago/{id}")

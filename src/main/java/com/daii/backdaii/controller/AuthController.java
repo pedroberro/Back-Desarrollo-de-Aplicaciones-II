@@ -2,10 +2,13 @@ package com.daii.backdaii.controller;
 
 import com.daii.backdaii.dto.auth.AuthResponse;
 import com.daii.backdaii.dto.auth.ChangePasswordRequest;
+import com.daii.backdaii.dto.auth.ForgotPasswordRequest;
 import com.daii.backdaii.dto.auth.LoginRequest;
 import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.AuthSession;
 import com.daii.backdaii.dto.auth.ForgotPasswordRequest;
+import com.daii.backdaii.dto.auth.LoginRequest;
+import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.ResetPasswordRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 import com.daii.backdaii.service.AuthService;
@@ -69,33 +72,10 @@ public class AuthController {
         authService.changePassword(user.getUsername(), request);
         return ResponseEntity.ok(Map.of("message", "Contraseña actualizada correctamente."));
     }
-    @GetMapping("/me")
-    public ResponseEntity<UsuarioDTO> me(@AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(usuarioService.getMe(user.getUsername()));
-    }
-
-    @PatchMapping("/me")
-    public ResponseEntity<UsuarioDTO> updateMe(@AuthenticationPrincipal UserDetails user,
-                                               @Valid @RequestBody com.daii.backdaii.dto.usuario.UpdateMeRequest request) {
-        return ResponseEntity.ok(usuarioService.updateMe(user.getUsername(), request));
-    }
-
-    @GetMapping("/email-available")
-    public Map<String, Boolean> emailAvailable(@RequestParam String email) {
-        return Map.of("available", authService.emailAvailable(email));
-    }
-
-    @GetMapping("/verify-email")
-    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
-        emailVerificationService.verify(token);
-        return ResponseEntity.ok(Map.of("message", "Email verificado. Ya podés iniciar sesión."));
-    }
-
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.request(request.getEmail());
-        // No revela si un email está registrado.
-        return ResponseEntity.ok(Map.of("message", "Si existe una cuenta asociada, enviamos un enlace de recuperación."));
+        authService.forgotPassword(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "Si el email existe, vas a recibir un link para restablecer tu contraseña."));
     }
 
     @PostMapping("/reset-password")
@@ -110,4 +90,3 @@ public class AuthController {
                 .maxAge(Duration.ofDays(30)).build();
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(session.response());
     }
-}

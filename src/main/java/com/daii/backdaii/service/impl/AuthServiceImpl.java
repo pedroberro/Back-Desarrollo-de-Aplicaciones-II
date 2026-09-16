@@ -1,8 +1,10 @@
 package com.daii.backdaii.service.impl;
 
+import com.daii.backdaii.domain.entity.PasswordResetToken;
 import com.daii.backdaii.domain.entity.TokenBlacklist;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.Rol;
+import com.daii.backdaii.domain.repository.PasswordResetTokenRepository;
 import com.daii.backdaii.domain.repository.TokenBlacklistRepository;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.domain.repository.RefreshTokenRepository;
@@ -10,19 +12,34 @@ import com.daii.backdaii.dto.auth.AuthResponse;
 import com.daii.backdaii.dto.auth.ChangePasswordRequest;
 import com.daii.backdaii.dto.auth.LoginRequest;
 import com.daii.backdaii.dto.auth.RegistroRequest;
+import com.daii.backdaii.dto.auth.ResetPasswordRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
+import com.daii.backdaii.exception.BadRequestException;
+import com.daii.backdaii.exception.ConflictException;
+import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.security.JwtTokenProvider;
 import com.daii.backdaii.service.AuthService;
+import com.daii.backdaii.service.EmailService;
 import com.daii.backdaii.service.MedioPagoService;
 import com.daii.backdaii.service.EmailVerificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,28 +54,26 @@ public class AuthServiceImpl implements AuthService {
     private final MedioPagoService medioPagoService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailService emailService;
+
+    @Value("${app.frontend.base-url}")
+    private String frontendUrl;
 
     @Override
     @Transactional
     public UsuarioDTO register(RegistroRequest request) {
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("El email ya está registrado");
-        }
-
-        Rol rol;
-        try {
-            // Las altas públicas no pueden elevar privilegios mediante el body.
-            rol = Rol.CLIENTE;
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Rol inválido: " + request.getRol());
+        String email = normalizarEmail(request.getEmail());
+        if (usuarioRepository.existsByEmail(email)) {
+            throw new ConflictException("El email ya está registrado");
         }
 
         Usuario usuario = Usuario.builder()
                 .nombre(request.getNombre())
-                .email(request.getEmail())
+                .email(email)
                 .telefono(request.getTelefono())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .rol(rol)
+                .rol(Rol.CLIENTE)
                 .build();
 
         usuario = usuarioRepository.save(usuario);
@@ -74,11 +89,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(normalizarEmail(request.getEmail()), request.getPassword())
         );
 
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Usuario usuario = usuarioRepository.findByEmail(normalizarEmail(request.getEmail()))
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         String token = jwtTokenProvider.generateToken(
                 usuario.getEmail(), usuario.getId(), usuario.getRol().name());
@@ -90,16 +105,78 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void changePassword(String email, ChangePasswordRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
-            throw new RuntimeException("La contraseña actual es incorrecta");
+            throw new BadRequestException("La contraseña actual es incorrecta");
         }
 
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
-        usuario.setPasswordChangedAt(java.time.LocalDateTime.now().withNano(0));
+        usuario.setPasswordChangedAt(LocalDateTime.now().withNano(0));
         usuarioRepository.save(usuario);
         refreshTokenRepository.deleteByUsuarioId(usuario.getId());
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(String email) {
+        Optional<Usuario> optional = usuarioRepository.findByEmail(normalizarEmail(email));
+        if (optional.isEmpty()) {
+            return;
+        }
+
+        Usuario usuario = optional.get();
+        passwordResetTokenRepository.deleteByUsuarioId(usuario.getId());
+
+        String rawToken = generateToken();
+        passwordResetTokenRepository.save(PasswordResetToken.builder()
+                .usuario(usuario)
+                .tokenHash(hashToken(rawToken))
+                .expiresAt(LocalDateTime.now().plusMinutes(30))
+                .build());
+
+        String resetLink = frontendUrl + "/reset-password?token=" + rawToken;
+        emailService.sendPasswordResetEmail(usuario.getEmail(), resetLink);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(hashToken(request.getToken()))
+                .orElseThrow(() -> new BadRequestException("Token de recuperación inválido o vencido"));
+
+        if (resetToken.getUsedAt() != null || resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Token de recuperación inválido o vencido");
+        }
+
+        Usuario usuario = resetToken.getUsuario();
+        usuario.setPassword(passwordEncoder.encode(request.getNuevaPassword()));
+        usuario.setPasswordChangedAt(LocalDateTime.now().withNano(0));
+        usuarioRepository.save(usuario);
+
+        resetToken.setUsedAt(LocalDateTime.now());
+        passwordResetTokenRepository.save(resetToken);
+    }
+
+    // Emails are stored lowercase so "Ana@x.com" and "ana@x.com" are the same account.
+    private String normalizarEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String generateToken() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al hashear el token", e);
+        }
     }
 
     @Override

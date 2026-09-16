@@ -45,3 +45,9 @@ app:
     cookie-secure: false # Usar true en producción con HTTPS.
     reset-url: ${APP_RESET_URL:http://localhost:5173/reset-password}
     verify-email-url: ${APP_VERIFY_EMAIL_URL:http://localhost:5173/verify-email}
+
+  mail:
+    from: "Planta Libre <plantalibre.ar@gmail.com>"
+
+  frontend:
+    base-url: http://localhost:5173

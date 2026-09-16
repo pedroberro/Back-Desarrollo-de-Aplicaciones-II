@@ -8,9 +8,9 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UsuarioMapper {
 
-    @Mapping(target = "id", source = "publicId")
-    @Mapping(target = "fullName", source = "nombre")
-    @Mapping(target = "role", expression = "java(usuario.getRol().name().toLowerCase())")
-    @Mapping(target = "status", expression = "java(usuario.getEstado().name().toLowerCase())")
+    @Mapping(target = "publicId", source = "publicId")
+    @Mapping(target = "nombre", source = "nombre")
+    @Mapping(target = "rol", expression = "java(usuario.getRol().name())")
+    @Mapping(target = "estado", expression = "java(usuario.getEstado().name())")
     UsuarioDTO toDTO(Usuario usuario);
 }

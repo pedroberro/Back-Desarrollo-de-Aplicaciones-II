@@ -1,5 +1,6 @@
 package com.daii.backdaii.domain.entity;
 
+import com.daii.backdaii.domain.enums.EstadoUsuario;
 import com.daii.backdaii.domain.enums.Rol;
 import com.daii.backdaii.domain.enums.EstadoUsuario;
 import jakarta.persistence.*;
@@ -55,6 +56,15 @@ public class Usuario {
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    @Builder.Default
+    private EstadoUsuario estado = EstadoUsuario.ACTIVO;
+
+    @Column(name = "password_changed_at", nullable = false)
+    @Builder.Default
+    private LocalDateTime passwordChangedAt = LocalDateTime.now().withNano(0);
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
