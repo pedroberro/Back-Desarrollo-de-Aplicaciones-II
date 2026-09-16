@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -20,4 +21,6 @@ public class UsuarioDTO {
     private String rol;
     private String estado;
     private LocalDateTime createdAt;
+    /** Derived from the role; lets the client show or hide actions. */
+    private List<String> permisos;
 }

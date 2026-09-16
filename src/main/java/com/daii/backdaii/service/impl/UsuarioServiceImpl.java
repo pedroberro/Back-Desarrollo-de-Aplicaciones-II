@@ -8,8 +8,11 @@ import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -36,5 +39,13 @@ public class UsuarioServiceImpl implements UsuarioService {
         usuarioRepository.save(usuario);
 
         return usuarioMapper.toDTO(usuario);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UsuarioDTO> listar() {
+        return usuarioRepository.findAll(Sort.by("id")).stream()
+                .map(usuarioMapper::toDTO)
+                .toList();
     }
 }

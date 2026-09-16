@@ -10,7 +10,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -23,12 +24,19 @@ public class CustomUserDetailsService implements UserDetailsService {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado con email: " + email));
 
+        // ROLE_X for role checks plus one authority per permission, so rules can ask for either.
+        List<SimpleGrantedAuthority> authorities = Stream.concat(
+                        Stream.of("ROLE_" + usuario.getRol().name()),
+                        usuario.getRol().getPermisos().stream().map(Enum::name))
+                .map(SimpleGrantedAuthority::new)
+                .toList();
+
         return new User(
                 usuario.getEmail(),
                 usuario.getPassword(),
                 usuario.getActivo(),
                 true, true, true,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + usuario.getRol().name()))
+                authorities
         );
     }
 }

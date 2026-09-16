@@ -10,5 +10,6 @@ public interface UsuarioMapper {
 
     @Mapping(target = "rol", expression = "java(usuario.getRol().name())")
     @Mapping(target = "estado", expression = "java(usuario.getEstado().name())")
+    @Mapping(target = "permisos", expression = "java(usuario.getRol().getPermisos().stream().map(Enum::name).toList())")
     UsuarioDTO toDTO(Usuario usuario);
 }
