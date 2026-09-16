@@ -13,6 +13,9 @@ import com.daii.backdaii.dto.auth.LoginRequest;
 import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.ResetPasswordRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
+import com.daii.backdaii.exception.BadRequestException;
+import com.daii.backdaii.exception.ConflictException;
+import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.security.JwtTokenProvider;
 import com.daii.backdaii.service.AuthService;
@@ -33,6 +36,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
@@ -55,13 +59,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public UsuarioDTO register(RegistroRequest request) {
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("El email ya está registrado");
+        String email = normalizarEmail(request.getEmail());
+        if (usuarioRepository.existsByEmail(email)) {
+            throw new ConflictException("El email ya está registrado");
         }
 
         Usuario usuario = Usuario.builder()
                 .nombre(request.getNombre())
-                .email(request.getEmail())
+                .email(email)
                 .telefono(request.getTelefono())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .rol(Rol.CLIENTE)
@@ -79,11 +84,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(normalizarEmail(request.getEmail()), request.getPassword())
         );
 
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Usuario usuario = usuarioRepository.findByEmail(normalizarEmail(request.getEmail()))
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         String token = jwtTokenProvider.generateToken(
                 usuario.getEmail(), usuario.getId(), usuario.getRol().name());
@@ -95,10 +100,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void changePassword(String email, ChangePasswordRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
-            throw new RuntimeException("La contraseña actual es incorrecta");
+            throw new BadRequestException("La contraseña actual es incorrecta");
         }
 
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
@@ -109,7 +114,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void forgotPassword(String email) {
-        Optional<Usuario> optional = usuarioRepository.findByEmail(email);
+        Optional<Usuario> optional = usuarioRepository.findByEmail(normalizarEmail(email));
         if (optional.isEmpty()) {
             return;
         }
@@ -132,10 +137,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(hashToken(request.getToken()))
-                .orElseThrow(() -> new RuntimeException("Token de recuperación inválido o vencido"));
+                .orElseThrow(() -> new BadRequestException("Token de recuperación inválido o vencido"));
 
         if (resetToken.getUsedAt() != null || resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token de recuperación inválido o vencido");
+            throw new BadRequestException("Token de recuperación inválido o vencido");
         }
 
         Usuario usuario = resetToken.getUsuario();
@@ -145,6 +150,11 @@ public class AuthServiceImpl implements AuthService {
 
         resetToken.setUsedAt(LocalDateTime.now());
         passwordResetTokenRepository.save(resetToken);
+    }
+
+    // Emails are stored lowercase so "Ana@x.com" and "ana@x.com" are the same account.
+    private String normalizarEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String generateToken() {

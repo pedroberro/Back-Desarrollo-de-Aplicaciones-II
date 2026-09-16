@@ -1,6 +1,7 @@
 package com.daii.backdaii.dto.auth;
 
 import com.daii.backdaii.dto.medioPago.MedioPagoRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,10 +21,12 @@ public class RegistroRequest {
 
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")
+    @Size(max = 255, message = "El email no puede superar los 255 caracteres")
     private String email;
 
     @NotBlank(message = "El teléfono es obligatorio")
     @Size(max = 30, message = "El teléfono no puede superar los 30 caracteres")
+    @Pattern(regexp = "^[+]?[0-9 ]{8,30}$", message = "El teléfono no es válido")
     private String telefono;
 
     @NotBlank(message = "La contraseña es obligatoria")
@@ -34,5 +37,6 @@ public class RegistroRequest {
     @NotBlank(message = "El rol es obligatorio")
     private String rol;
 
+    @Valid
     private MedioPagoRequest medioPago;
 }

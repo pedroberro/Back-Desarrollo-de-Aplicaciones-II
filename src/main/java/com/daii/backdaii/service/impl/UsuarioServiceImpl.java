@@ -4,6 +4,7 @@ import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.dto.usuario.UpdateMeRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
+import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Transactional(readOnly = true)
     public UsuarioDTO getMe(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
         return usuarioMapper.toDTO(usuario);
     }
 
@@ -29,7 +30,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Transactional
     public UsuarioDTO updateMe(String email, UpdateMeRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         usuario.setTelefono(request.getTelefono());
         usuarioRepository.save(usuario);

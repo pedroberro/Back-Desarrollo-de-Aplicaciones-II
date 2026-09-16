@@ -8,7 +8,11 @@ import java.util.Optional;
 
 public interface MedioPagoRepository extends JpaRepository<MedioPago, Long> {
 
-    List<MedioPago> findByUsuarioIdAndEliminadoFalse(Long usuarioId);
+    List<MedioPago> findByUsuarioIdAndEliminadoFalseOrderByPrincipalDescCreadoElAsc(Long usuarioId);
+
+    Optional<MedioPago> findFirstByUsuarioIdAndEliminadoFalseOrderByCreadoElAsc(Long usuarioId);
 
     Optional<MedioPago> findByIdAndUsuarioIdAndEliminadoFalse(Long id, Long usuarioId);
+
+    long countByUsuarioIdAndEliminadoFalse(Long usuarioId);
 }

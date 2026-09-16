@@ -8,10 +8,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MedioPagoResumen {
-
     private Long id;
     private String tipo;
     private String descripcion;
+    private String ultimos4;
+    private String titular;
+    private String vencimiento;
+    private boolean principal;
     private boolean verificado;
     private String estado;
 }

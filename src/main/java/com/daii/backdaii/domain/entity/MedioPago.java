@@ -46,6 +46,10 @@ public class MedioPago {
     @Builder.Default
     private Boolean eliminado = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean principal = false;
+
     @CreationTimestamp
     @Column(name = "creado_el", nullable = false, updatable = false)
     private LocalDateTime creadoEl;
