@@ -2,6 +2,10 @@ spring:
   application:
     name: back-daii
 
+  # Local secrets (e.g. MAIL_PASSWORD) live in back/.env, which git ignores. See .env.example.
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
     url: jdbc:postgresql://localhost:5432/reservas_espacios
     username: postgres
@@ -24,7 +28,7 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:}
+    username: ${MAIL_USERNAME:no.reply.planta.libre@gmail.com}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
@@ -32,6 +36,9 @@ spring:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 app:
   jwt:
@@ -41,7 +48,9 @@ app:
     prefix: "Bearer "
 
   mail:
-    from: "Planta Libre <plantalibre.ar@gmail.com>"
+    from: "Planta Libre <no.reply.planta.libre@gmail.com>"
+    # Also print recovery and confirmation links in the log (handy locally, never in production).
+    log-links: ${MAIL_LOG_LINKS:false}
 
   frontend:
     base-url: http://localhost:5173

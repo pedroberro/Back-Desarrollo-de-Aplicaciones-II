@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/email-disponible", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/email-disponible", "/api/auth/confirmar-email", "/api/auth/reenviar-confirmacion", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                         // Without this, any error forwarded to /error is masked as an empty 403.
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()

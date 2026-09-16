@@ -16,6 +16,11 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request);
 
+    /** Confirms the account behind a single-use link and signs the user in. */
+    AuthResponse confirmarEmail(String token);
+
+    void reenviarConfirmacion(String email);
+
     void logout(String token);
 
     void changePassword(String email, ChangePasswordRequest request);
