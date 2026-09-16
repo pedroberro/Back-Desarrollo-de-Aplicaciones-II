@@ -56,6 +56,12 @@ public class UsuarioController {
         return ResponseEntity.ok(medioPagoService.actualizar(user.getUsername(), id, request));
     }
 
+    @PatchMapping("/me/medios-pago/{id}/principal")
+    public ResponseEntity<List<MedioPagoResumen>> marcarMedioPagoPrincipal(@AuthenticationPrincipal UserDetails user,
+                                                                          @PathVariable Long id) {
+        return ResponseEntity.ok(medioPagoService.marcarPrincipal(user.getUsername(), id));
+    }
+
     @DeleteMapping("/me/medios-pago/{id}")
     public ResponseEntity<Map<String, String>> eliminarMedioPago(@AuthenticationPrincipal UserDetails user,
                                                                  @PathVariable Long id) {

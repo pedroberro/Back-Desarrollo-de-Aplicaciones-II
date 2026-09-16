@@ -14,5 +14,8 @@ public interface MedioPagoService {
 
     MedioPagoResumen actualizar(String email, Long id, MedioPagoUpdateRequest request);
 
+    /** Makes the card the user's primary one and returns the updated list. */
+    List<MedioPagoResumen> marcarPrincipal(String email, Long id);
+
     void eliminar(String email, Long id);
 }

@@ -89,6 +89,27 @@ public class MedioPagoServiceImpl implements MedioPagoService {
 
         @Override
         @Transactional
+        public List<MedioPagoResumen> marcarPrincipal(String email, Long id) {
+                Usuario usuario = usuarioRepository.findByEmail(email)
+                        .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
+
+                medioPagoRepository.findByIdAndUsuarioIdAndEliminadoFalse(id, usuario.getId())
+                        .orElseThrow(() -> new NotFoundException("Medio de pago no encontrado"));
+
+                // At most three cards per user, so updating them one by one is fine.
+                List<MedioPago> tarjetas = medioPagoRepository
+                        .findByUsuarioIdAndEliminadoFalseOrderByPrincipalDescCreadoElAsc(usuario.getId());
+                tarjetas.forEach(tarjeta -> tarjeta.setPrincipal(tarjeta.getId().equals(id)));
+                medioPagoRepository.saveAllAndFlush(tarjetas);
+
+                return medioPagoRepository.findByUsuarioIdAndEliminadoFalseOrderByPrincipalDescCreadoElAsc(usuario.getId())
+                        .stream()
+                        .map(this::toResumen)
+                        .toList();
+        }
+
+        @Override
+        @Transactional
         public void eliminar(String email, Long id) {
                 Usuario usuario = usuarioRepository.findByEmail(email)
                         .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
