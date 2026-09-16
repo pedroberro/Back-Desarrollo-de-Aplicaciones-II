@@ -1,0 +1,4 @@
+ALTER TABLE usuarios
+    ADD COLUMN public_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+    ADD COLUMN password_changed_at TIMESTAMP NOT NULL DEFAULT NOW();

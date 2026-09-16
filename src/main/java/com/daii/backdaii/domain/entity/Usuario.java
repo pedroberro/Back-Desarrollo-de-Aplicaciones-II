@@ -1,5 +1,6 @@
 package com.daii.backdaii.domain.entity;
 
+import com.daii.backdaii.domain.enums.EstadoUsuario;
 import com.daii.backdaii.domain.enums.Rol;
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "usuarios")
@@ -20,6 +22,10 @@ public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "public_id", nullable = false, unique = true, updatable = false)
+    @Builder.Default
+    private UUID publicId = UUID.randomUUID();
 
     @Column(nullable = false, length = 100)
     private String nombre;
@@ -40,6 +46,15 @@ public class Usuario {
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    @Builder.Default
+    private EstadoUsuario estado = EstadoUsuario.ACTIVO;
+
+    @Column(name = "password_changed_at", nullable = false)
+    @Builder.Default
+    private LocalDateTime passwordChangedAt = LocalDateTime.now().withNano(0);
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

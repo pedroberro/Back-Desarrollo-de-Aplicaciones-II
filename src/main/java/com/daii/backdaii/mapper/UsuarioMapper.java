@@ -9,5 +9,6 @@ import org.mapstruct.Mapping;
 public interface UsuarioMapper {
 
     @Mapping(target = "rol", expression = "java(usuario.getRol().name())")
+    @Mapping(target = "estado", expression = "java(usuario.getEstado().name())")
     UsuarioDTO toDTO(Usuario usuario);
 }
