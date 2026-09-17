@@ -54,9 +54,15 @@ app:
     prefix: "Bearer "
 
   mail:
+    # smtp (spring.mail.*, used locally) or gmail-api (HTTPS, for hosts that block SMTP like Render free).
+    provider: ${MAIL_PROVIDER:smtp}
     from: "Planta Libre <no.reply.planta.libre@gmail.com>"
     # Also print recovery and confirmation links in the log (handy locally, never in production).
     log-links: ${MAIL_LOG_LINKS:false}
+    gmail:
+      client-id: ${GMAIL_CLIENT_ID:}
+      client-secret: ${GMAIL_CLIENT_SECRET:}
+      refresh-token: ${GMAIL_REFRESH_TOKEN:}
 
   frontend:
     # Used to build the links sent by mail.

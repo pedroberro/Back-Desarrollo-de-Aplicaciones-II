@@ -18,13 +18,22 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: MAIL_PASSWORD
+      # Mail goes through the Gmail API: the free plan blocks SMTP (ports 25, 465, 587).
+      - key: MAIL_PROVIDER
+        value: gmail-api
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
         sync: false
       - key: FRONTEND_URL
         sync: false
+      # The Vercel URL. Vercel forwards the browser's Origin header, so it must be allowed.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
       - key: SHOW_SQL
         value: "false"
-      # The free plan blocks outbound SMTP (ports 25, 465, 587), so mails do not leave Render.
-      # Until mail goes through an HTTP API or a paid instance, links are readable in the service logs.
+      # Links are still printed in the logs while the Gmail credentials are missing.
       - key: MAIL_LOG_LINKS
-        value: "true"
+        value: "false"
