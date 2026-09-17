@@ -1,0 +1,30 @@
+# Render Blueprint: creates the backend web service from this repo.
+# Values marked sync: false are asked for in the Render dashboard; never commit them.
+services:
+  - type: web
+    name: planta-libre-api
+    runtime: docker
+    plan: free
+    # Same region as the Neon database (AWS us-east-2), so every query does not cross the continent.
+    region: ohio
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SHOW_SQL
+        value: "false"
+      # The free plan blocks outbound SMTP (ports 25, 465, 587), so mails do not leave Render.
+      # Until mail goes through an HTTP API or a paid instance, links are readable in the service logs.
+      - key: MAIL_LOG_LINKS
+        value: "true"

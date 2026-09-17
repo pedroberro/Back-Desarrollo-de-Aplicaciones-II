@@ -1,3 +1,9 @@
+server:
+  port: ${PORT:8080}
+  # Render and Vercel sit in front of the app: trust X-Forwarded-For so the client IP
+  # (used by the rate limiter) is the real one and not the proxy's.
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: back-daii
@@ -7,15 +13,15 @@ spring:
     import: optional:file:.env[.properties]
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/reservas_espacios
-    username: postgres
-    password: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/reservas_espacios}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: ${SHOW_SQL:true}
     properties:
       hibernate:
         format_sql: true
@@ -53,4 +59,9 @@ app:
     log-links: ${MAIL_LOG_LINKS:false}
 
   frontend:
-    base-url: http://localhost:5173
+    # Used to build the links sent by mail.
+    base-url: ${FRONTEND_URL:http://localhost:5173}
+
+  cors:
+    # Comma-separated. Not needed when the front proxies /api (Vercel rewrites), kept for direct calls.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
