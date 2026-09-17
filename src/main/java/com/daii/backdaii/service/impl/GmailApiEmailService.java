@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -52,6 +53,8 @@ public class GmailApiEmailService extends AbstractEmailService {
     private String accessToken;
     private Instant accessTokenVence = Instant.EPOCH;
 
+    // Two constructors (the other one is for tests): Spring must be told which to use.
+    @Autowired
     public GmailApiEmailService(RestClient.Builder builder) {
         this(builder, Clock.systemUTC());
     }
