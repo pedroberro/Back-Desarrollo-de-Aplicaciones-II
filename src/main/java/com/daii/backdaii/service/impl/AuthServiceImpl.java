@@ -159,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void changePassword(String email, ChangePasswordRequest request) {
+    public AuthResponse changePassword(String email, ChangePasswordRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
@@ -170,6 +170,7 @@ public class AuthServiceImpl implements AuthService {
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
         usuario.setPasswordChangedAt(LocalDateTime.now().withNano(0));
         usuarioRepository.save(usuario);
+        return iniciarSesion(usuario);
     }
 
     @Override

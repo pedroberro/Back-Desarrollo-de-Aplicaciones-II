@@ -78,10 +78,10 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, String>> changePassword(@AuthenticationPrincipal UserDetails user,
-                                                              @Valid @RequestBody ChangePasswordRequest request) {
-        authService.changePassword(user.getUsername(), request);
-        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada correctamente."));
+    public ResponseEntity<AuthResponse> changePassword(@AuthenticationPrincipal UserDetails user,
+                                                       @Valid @RequestBody ChangePasswordRequest request) {
+        // The other sessions end; this one continues with the token in the response.
+        return ResponseEntity.ok(authService.changePassword(user.getUsername(), request));
     }
 
     @PostMapping("/forgot-password")

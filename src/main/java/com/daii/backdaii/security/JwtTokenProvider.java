@@ -75,6 +75,16 @@ public class JwtTokenProvider {
                 .toLocalDateTime();
     }
 
+    public java.time.Instant getIssuedAt(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getIssuedAt()
+                .toInstant();
+    }
+
     public boolean validateToken(String token) {
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(token);

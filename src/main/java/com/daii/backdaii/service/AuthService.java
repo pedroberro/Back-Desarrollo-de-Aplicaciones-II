@@ -23,7 +23,8 @@ public interface AuthService {
 
     void logout(String token);
 
-    void changePassword(String email, ChangePasswordRequest request);
+    /** Returns a new session: tokens issued before the change stop working. */
+    AuthResponse changePassword(String email, ChangePasswordRequest request);
 
     void forgotPassword(String email);
 

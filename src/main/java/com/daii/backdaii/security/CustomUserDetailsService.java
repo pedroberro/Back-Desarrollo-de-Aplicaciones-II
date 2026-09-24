@@ -4,12 +4,12 @@ import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -31,12 +31,13 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 
-        return new User(
+        // passwordChangedAt is written with the server's default zone, so it is read back with it.
+        return new UsuarioPrincipal(
                 usuario.getEmail(),
                 usuario.getPassword(),
                 usuario.getActivo(),
-                true, true, true,
-                authorities
+                authorities,
+                usuario.getPasswordChangedAt().atZone(ZoneId.systemDefault()).toInstant()
         );
     }
 }
