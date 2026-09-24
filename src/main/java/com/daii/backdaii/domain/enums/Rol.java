@@ -23,6 +23,8 @@ public enum Rol {
             Permiso.ESPACIOS_VER,
             Permiso.ESPACIOS_GESTIONAR,
             Permiso.RESERVAS_VER_TODAS,
+            Permiso.RESERVAS_GESTIONAR,
+            Permiso.BLOQUEOS_GESTIONAR,
             Permiso.USUARIOS_VER,
             Permiso.USUARIOS_BLOQUEAR));
 

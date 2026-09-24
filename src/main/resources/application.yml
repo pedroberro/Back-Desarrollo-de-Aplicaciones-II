@@ -64,6 +64,14 @@ app:
       client-secret: ${GMAIL_CLIENT_SECRET:}
       refresh-token: ${GMAIL_REFRESH_TOKEN:}
 
+  # Bookings are stored in the buildings' local time; "now" is taken in this zone even if the
+  # server runs in UTC.
+  zona-horaria: ${ZONA_HORARIA:America/Argentina/Buenos_Aires}
+
+  demo:
+    # Fills the two weeks around today with demo bookings on startup (see DatosDemoInicializador).
+    habilitado: ${DEMO_HABILITADO:true}
+
   frontend:
     # Used to build the links sent by mail.
     base-url: ${FRONTEND_URL:http://localhost:5173}

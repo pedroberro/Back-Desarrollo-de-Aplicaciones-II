@@ -1,5 +1,6 @@
 package com.daii.backdaii.exception;
 
+import com.daii.backdaii.dto.reserva.ReservaDTOs.FranjaTomada;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApi(ApiException ex) {
         return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getMessage(), null, ex.getCode()));
+    }
+
+    // More specific than ApiException, so Spring picks this one: the body adds the alternatives.
+    @ExceptionHandler(FranjaTomadaException.class)
+    public ResponseEntity<FranjaTomada> handleFranjaTomada(FranjaTomadaException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(new FranjaTomada(ex.getMessage(), ex.getCode(), ex.getAlternativas()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

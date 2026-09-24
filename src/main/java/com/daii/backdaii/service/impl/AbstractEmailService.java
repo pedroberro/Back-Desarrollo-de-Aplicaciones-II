@@ -61,7 +61,26 @@ public abstract class AbstractEmailService implements EmailService {
                 """.formatted(nombre, confirmLink), confirmLink);
     }
 
+    @Async
+    @Override
+    public void sendAvisoReserva(String to, String nombre, String titulo, String detalle) {
+        enviar(to, titulo + " - Planta Libre", """
+                Hola %s,
+
+                %s
+
+                %s
+
+                Podés ver el detalle y el historial de cambios en Mis reservas.
+                """.formatted(nombre, titulo + ".", detalle), null);
+    }
+
     private void enviar(String to, String asunto, String texto, String link) {
+        // .local is a reserved, non-routable domain: the seeded admin and demo accounts use it.
+        if (to.endsWith(".local")) {
+            log.info("[demo] {} para {}: no se envía, es una cuenta de demostración", asunto, to);
+            return;
+        }
         if (!configurado() || logLinks) {
             log.info("[dev] {} para {}: {}", asunto, to, link);
         }
