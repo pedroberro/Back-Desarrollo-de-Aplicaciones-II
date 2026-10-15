@@ -19,10 +19,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
@@ -67,8 +69,19 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        // Counted per account, not per IP: the IP can be spoofed and rotated, the target account cannot.
+        String cuenta = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        if (limitador.agotado(LimiteIntentos.LOGIN_FALLIDO, cuenta)) {
+            throw new TooManyRequestsException("Demasiados intentos fallidos. Probá de nuevo en 15 minutos o restablecé tu contraseña.");
+        }
+        try {
+            AuthResponse response = authService.login(request);
+            limitador.reiniciar(LimiteIntentos.LOGIN_FALLIDO, cuenta);
+            return ResponseEntity.ok(response);
+        } catch (BadCredentialsException e) {
+            limitador.permitir(LimiteIntentos.LOGIN_FALLIDO, cuenta);
+            throw e;
+        }
     }
 
     @PostMapping("/logout")

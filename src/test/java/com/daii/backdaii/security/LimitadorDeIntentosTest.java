@@ -92,4 +92,28 @@ class LimitadorDeIntentosTest {
         limitador.iniciar();
         assertThat(limitador.permitir(LimiteIntentos.RECUPERAR_PASSWORD, "10.0.0.1")).isTrue();
     }
+
+    @Test
+    void elLoginSeTrabaRecienDespuesDeDiezFallosYSeLiberaAlAcertar() {
+        String cuenta = "ana@example.com";
+        for (int i = 0; i < 9; i++) {
+            limitador.permitir(LimiteIntentos.LOGIN_FALLIDO, cuenta);
+        }
+        assertThat(limitador.agotado(LimiteIntentos.LOGIN_FALLIDO, cuenta)).isFalse();
+
+        limitador.permitir(LimiteIntentos.LOGIN_FALLIDO, cuenta);
+        assertThat(limitador.agotado(LimiteIntentos.LOGIN_FALLIDO, cuenta)).isTrue();
+
+        limitador.reiniciar(LimiteIntentos.LOGIN_FALLIDO, cuenta);
+        assertThat(limitador.agotado(LimiteIntentos.LOGIN_FALLIDO, cuenta)).isFalse();
+    }
+
+    @Test
+    void elBloqueoDelLoginVenceConLaVentana() {
+        for (int i = 0; i < 10; i++) {
+            limitador.permitir(LimiteIntentos.LOGIN_FALLIDO, "ana@example.com");
+        }
+        reloj.avanzar(Duration.ofMinutes(15));
+        assertThat(limitador.agotado(LimiteIntentos.LOGIN_FALLIDO, "ana@example.com")).isFalse();
+    }
 }

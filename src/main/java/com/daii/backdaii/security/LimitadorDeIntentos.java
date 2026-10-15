@@ -81,6 +81,17 @@ public class LimitadorDeIntentos {
         return ventana.cantidad() <= limite.getMaximo();
     }
 
+    /** Whether the client already used up the window, without counting this call. */
+    public boolean agotado(LimiteIntentos limite, String cliente) {
+        Ventana ventana = ventanas.get(limite.name() + "|" + cliente);
+        return ventana != null && !ventana.vencida(clock.millis()) && ventana.cantidad() >= limite.getMaximo();
+    }
+
+    /** Forgets the client's count, e.g. after a successful sign-in. */
+    public void reiniciar(LimiteIntentos limite, String cliente) {
+        ventanas.remove(limite.name() + "|" + cliente);
+    }
+
     void descartarVencidas() {
         long ahora = clock.millis();
         int antes = ventanas.size();

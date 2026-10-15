@@ -2,13 +2,15 @@ package com.daii.backdaii.security;
 
 import java.time.Duration;
 
-/** Public actions that are capped per client IP, with how many calls each allows per window. */
+/** Public actions that are capped per client (IP or account), with how many calls each allows per window. */
 public enum LimiteIntentos {
     // Reveals whether an account exists: capped so bulk lookups are impractical.
     EMAIL_DISPONIBLE(20, Duration.ofMinutes(1)),
     // Each call can send a mail: capped to avoid flooding someone's inbox.
     RECUPERAR_PASSWORD(5, Duration.ofMinutes(15)),
-    REENVIAR_CONFIRMACION(5, Duration.ofMinutes(15));
+    REENVIAR_CONFIRMACION(5, Duration.ofMinutes(15)),
+    // Failed sign-ins per account: stops guessing a password, whatever IP the guesses come from.
+    LOGIN_FALLIDO(10, Duration.ofMinutes(15));
 
     private final int maximo;
     private final Duration ventana;

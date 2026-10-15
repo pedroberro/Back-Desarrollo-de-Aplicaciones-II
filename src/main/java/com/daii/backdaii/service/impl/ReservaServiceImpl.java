@@ -19,6 +19,7 @@ import com.daii.backdaii.dto.reserva.ReservaDTOs.MisReservas;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ReintegroSiCancela;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaDTO;
 import com.daii.backdaii.exception.BadRequestException;
+import com.daii.backdaii.exception.ConflictException;
 import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.service.ReservaService;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,13 @@ public class ReservaServiceImpl implements ReservaService {
         LocalDateTime ahora = LocalDateTime.now(reloj);
         Franja franja = TomaDeFranja.franja(request.inicio(), request.fin());
         MedioPago medioPago = medioPago(usuario, request.medioPagoId());
+        // The screen warns about it too, but the rule lives here: the API is callable directly.
+        reservaRepository.findDelUsuarioEnRango(usuario.getId(), franja.inicio(), franja.fin(), EstadoReserva.ACTIVOS).stream()
+                .findFirst()
+                .ifPresent(otra -> {
+                    throw new ConflictException("Ya tenés la reserva " + otra.getCodigo() + " en " + otra.getEspacio().getCodigo()
+                            + " en ese horario. No podés reservar dos espacios a la vez.", "RESERVA_SUPERPUESTA");
+                });
 
         Espacio espacio = tomaDeFranja.bloquear(request.espacioId());
         reglas.validar(franja, espacio.getPiso().getEdificio().getHorario(), ahora);

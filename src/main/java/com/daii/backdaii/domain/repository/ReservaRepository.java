@@ -37,6 +37,13 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
     @EntityGraph(attributePaths = {"espacio", "espacio.piso", "espacio.piso.edificio", "espacio.piso.edificio.empresa", "usuario", "creadaPor"})
     Optional<Reserva> findDetalleById(Long id);
 
+    /** The customer's active bookings that overlap a range: a person cannot be in two spaces at once. */
+    @EntityGraph(attributePaths = {"espacio"})
+    @Query("select r from Reserva r where r.usuario.id = :usuarioId and r.estado in :estados "
+            + "and r.inicio < :hasta and r.fin > :desde order by r.inicio")
+    List<Reserva> findDelUsuarioEnRango(Long usuarioId, LocalDateTime desde, LocalDateTime hasta,
+                                        Collection<EstadoReserva> estados);
+
     /**
      * Locks the booking row until the transaction ends. Charging and cancelling both go through
      * here, so a cancellation never overwrites a charge in flight, nor the other way around.
