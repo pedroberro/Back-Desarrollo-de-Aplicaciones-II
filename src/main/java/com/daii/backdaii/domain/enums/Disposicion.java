@@ -8,7 +8,9 @@ public enum Disposicion {
     PASILLO_CENTRAL("Pasillo central"),
     NUCLEO_CENTRAL("Núcleo central"),
     PEINE("Peine"),
-    EN_L("En L con terraza");
+    EN_L("En L con terraza"),
+    ISLAS("Open space con islas"),
+    DOBLE_PASILLO("Doble pasillo");
 
     private final String etiqueta;
 

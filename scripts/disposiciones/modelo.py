@@ -8,6 +8,32 @@ APOYO = "APOYO"          # lockers, printers, building services: fills what spac
 EXTERIOR = "EXTERIOR"    # terrace or patio: open air, its edges count as glazed walls
 
 
+# What fills the grid cells a layout leaves free, by where they are. Each floor walks the lists
+# from its own starting point, so neighbouring floors do not repeat the same thing.
+RELLENOS = {
+    "puestos": ["Cabina telefónica", "Impresión", "Jardín interior", "Lockers", "Biblioteca"],
+    "fondo": ["Office · café", "Depósito", "Jardín interior"],
+    "nucleo": ["Instalaciones", "Archivo"],
+    "isla": ["Zona de descanso", "Jardín interior", "Biblioteca"],
+}
+
+
+class Rellenos:
+    def __init__(self, semilla):
+        self.semilla = semilla
+        self.usados = {}
+
+    def etiqueta(self, contexto):
+        lista = RELLENOS[contexto]
+        n = self.usados.get(contexto, 0)
+        self.usados[contexto] = n + 1
+        return lista[(self.semilla + n) % len(lista)]
+
+
+def rellenos_para(piso):
+    return Rellenos(piso.numero * 3 + len(piso.edificio))
+
+
 class NoEntra(Exception):
     """The floor's spaces do not fit this layout; the generator tries another one."""
 
@@ -96,6 +122,27 @@ class Plano:
 
     def de_tipo(self, tipo):
         return [a for a in self.areas if a.tipo == tipo]
+
+
+def muros(*conjuntos):
+    """Union of walls with windows, in the usual order."""
+    todos = set().union(*conjuntos)
+    return [m for m in ("NORTE", "SUR", "ESTE", "OESTE") if m in todos]
+
+
+def unir_apoyos(plano):
+    """Joins support areas that sit side by side in the same row into one, keeping the first label:
+    two free slots read as one printing corner, not as two boxes."""
+    cambio = True
+    while cambio:
+        cambio = False
+        apoyos = sorted((a for a in plano.areas if a.tipo == APOYO), key=lambda a: (a.rect.y, a.rect.x))
+        for a, b in zip(apoyos, apoyos[1:]):
+            if a.rect.y == b.rect.y and a.rect.alto == b.rect.alto and a.rect.x2 == b.rect.x:
+                plano.areas.remove(b)
+                a.rect = Rect(a.rect.x, a.rect.y, a.rect.ancho + b.rect.ancho, a.rect.alto)
+                cambio = True
+                break
 
 
 def cubiculos(cantidad):

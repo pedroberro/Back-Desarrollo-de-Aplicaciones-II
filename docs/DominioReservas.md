@@ -100,16 +100,18 @@ Los permisos nuevos, `RESERVAS_GESTIONAR` y `BLOQUEOS_GESTIONAR`, se agregan al 
 
 ## 7. Disposiciones de planta
 
-No todos los pisos son iguales. Cada piso tiene una de cuatro disposiciones:
+No todos los pisos son iguales. Cada piso tiene una de seis disposiciones:
 
 | Disposición | Cómo es | Dónde |
 |---|---|---|
-| **Pasillo central** | Filas de cubículos, un pasillo de lado a lado, una fila de salas y otra de servicios. Es la planta de los wireframes. | Torre Callao, Sede Constitución y algunos pisos sueltos |
+| **Pasillo central** | Filas de cubículos, un pasillo de lado a lado, una fila de salas y otra de servicios. Es la planta de los wireframes. | Torre Callao y algún piso suelto |
 | **Núcleo central** | Ascensores y escaleras en el medio, un pasillo que los rodea y los puestos sobre las fachadas norte y sur. Las salas van a las esquinas o junto al núcleo, y los baños debajo de los ascensores. | Distrito Norte, Estación Retiro, Ribera Puerto Madero, Delta Centro |
 | **Peine** | Salas en la cabecera, un pasillo transversal y un pasillo central que baja entre dos alas de cubículos. Los servicios cierran el fondo a los dos lados. | Nodo Palermo, Polo Tecnológico y otros |
+| **Open space con islas** | Cubículos agrupados en islas de cuatro, con pasillos alrededor de cada isla. Las salas son islas cerradas entre las abiertas. | Nodo Palermo, Polo Tecnológico, Sede Avellaneda, Casa Lumen |
+| **Doble pasillo** | Puestos sobre las dos fachadas y, entre dos pasillos paralelos, una banda cerrada con los servicios y las salas. | Sede Constitución y un piso de Distrito Norte, Ribera Puerto Madero y Delta Centro |
 | **En L con terraza** | El ala de cubículos con su pasillo sobre el lado oeste; el pasillo dobla abajo y pasa bajo la terraza, que da a él. En planta baja la terraza es un patio. Los puestos que dan a la terraza tienen ventanal. | Casa Barracas, Estudio Almagro, Ribera Tigre, Casa Lumen |
 
-**La disposición es un dato, no código.** El plano se arma con rectángulos en la grilla: los espacios y los servicios, como antes, y ahora también las áreas estructurales de la tabla `areas_plano`: `PASILLO`, `NUCLEO` (ascensores y escaleras), `APOYO` (lockers, depósito, instalaciones) y `EXTERIOR` (terraza o patio). La API manda esos rectángulos y el front los dibuja sin saber de qué disposición se trata. `pisos.disposicion` es solamente el nombre que se muestra en el encabezado del plano y en la lista de pisos.
+**La disposición es un dato, no código.** El plano se arma con rectángulos en la grilla: los espacios y los servicios, como antes, y ahora también las áreas estructurales de la tabla `areas_plano`: `PASILLO`, `NUCLEO` (ascensores y escaleras), `APOYO` (lo que los espacios dejan libre: cabinas telefónicas, impresión, jardín interior, office, depósito, archivo) y `EXTERIOR` (terraza o patio). La API manda esos rectángulos y el front los dibuja sin saber de qué disposición se trata. `pisos.disposicion` es solamente el nombre que se muestra en el encabezado del plano y en la lista de pisos.
 
 **Ventanas.** Cada espacio guarda de qué lado tiene la ventana (`orientacion`). El front dibuja la marca azul sobre el muro exterior o, si da a una terraza o patio, sobre el borde que la mira.
 
@@ -120,13 +122,15 @@ No todos los pisos son iguales. Cada piso tiene una de cuatro disposiciones:
 - que se llegue caminando a cada espacio reservable, por pasillos o por la zona abierta de cubículos, nunca a través de una sala cerrada;
 - que las terrazas den a un pasillo.
 
-Si un piso no entra en su disposición (por ejemplo, 14 cubículos y 3 salas no caben en un núcleo central), el generador prueba con la siguiente y lo informa. El resultado es la migración `V15`, que actualiza posiciones, ventanas y textos **sin cambiar ids ni códigos**: las reservas y los bloqueos existentes siguen apuntando a los mismos espacios. La `V12` no se toca, porque ya está aplicada.
+Los huecos se llenan según dónde caen: entre los puestos, una cabina telefónica, impresión, un jardín o lockers; en el fondo, un office o un depósito; junto al núcleo, archivo o instalaciones. Cada piso recorre las listas desde un punto distinto, y dos huecos pegados se unen en uno.
+
+Si un piso no entra en su disposición (por ejemplo, 14 cubículos y 3 salas no caben en un núcleo central), el generador prueba con la siguiente y lo informa. El resultado es una migración (`V15`, después `V16`) que actualiza posiciones, ventanas y textos de todos los pisos **sin cambiar ids ni códigos**: las reservas y los bloqueos existentes siguen apuntando a los mismos espacios. Una migración ya aplicada no se vuelve a escribir, porque Flyway rechaza el cambio: cada cambio de disposiciones va a la versión siguiente. Por eso la `V12` y la `V15` quedan como están.
 
 ```bash
-python3 scripts/generar_disposiciones.py --ascii
+python3 scripts/generar_disposiciones.py V17 --ascii
 ```
 
-dibuja cada piso en texto para revisarlo sin levantar la aplicación.
+escribe la próxima migración y dibuja cada piso en texto, para revisarlo sin levantar la aplicación.
 
 **Para agregar una disposición:** crear un módulo en `scripts/disposiciones/` con `CODIGO`, `ETIQUETA` y `disponer(piso)`, registrarlo en `disposiciones/__init__.py`, sumar el código y su nombre en `Disposicion.java`, y asignarlo a los edificios en `ASIGNACION`. El back y el front no cambian.
 

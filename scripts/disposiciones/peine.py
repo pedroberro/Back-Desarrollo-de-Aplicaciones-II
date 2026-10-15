@@ -7,7 +7,7 @@ runs down the middle with cubicles on both sides; the services close the far end
     C C C   ||||   C C C
     [cocina][baño] |||| [estar][baño]   last row: services, on both sides of the spine
 """
-from .modelo import APOYO, PASILLO, Area, Espacio, NoEntra, Plano, Rect, Servicio, cubiculos, salas
+from .modelo import APOYO, PASILLO, Area, Espacio, NoEntra, Plano, Rect, Servicio, cubiculos, rellenos_para, salas
 
 CODIGO = "PEINE"
 ETIQUETA = "Peine"
@@ -27,6 +27,7 @@ def disponer(piso):
     filas_cub = (len(codigos) + len(SLOTS) - 1) // len(SLOTS)
     ultima = 2 + filas_cub                      # services row
     plano = Plano(CODIGO, COLUMNAS, ultima + 1, list(piso.ventanas), acceso="el pasillo de la cabecera")
+    relleno = rellenos_para(piso)
 
     lista = salas(piso)
     x = 0
@@ -43,9 +44,9 @@ def disponer(piso):
         x, lado = SLOTS[i % len(SLOTS)]
         plano.espacios.append(Espacio(codigo, "CUBICULO", 1, Rect(x, fila, ANCHO_CUBICULO, 1), _ubicacion(x, lado)))
     for x, _ in SLOTS[len(codigos) % len(SLOTS) or len(SLOTS):]:
-        plano.areas.append(Area(APOYO, "Lockers", Rect(x, 1 + filas_cub, ANCHO_CUBICULO, 1)))
+        plano.areas.append(Area(APOYO, relleno.etiqueta("puestos"), Rect(x, 1 + filas_cub, ANCHO_CUBICULO, 1)))
 
-    _servicios(plano, piso, ultima)
+    _servicios(plano, piso, ultima, relleno)
     return plano
 
 
@@ -57,7 +58,7 @@ def _ubicacion(x, lado):
     return f"Ala {lado}, en el centro del ala"
 
 
-def _servicios(plano, piso, fila):
+def _servicios(plano, piso, fila, relleno):
     """Fills each side of the spine from the spine outwards, so every service opens onto it."""
     lados = [[X_ESPINA, -1], [X_ESPINA + ESPINA, 1]]     # [edge next to the spine, direction]
     libres = [ALA, ALA]
@@ -74,4 +75,4 @@ def _servicios(plano, piso, fila):
     for lado, (borde, sentido) in enumerate(lados):
         if libres[lado]:
             x = 0 if sentido < 0 else borde
-            plano.areas.append(Area(APOYO, "Lockers", Rect(x, fila, libres[lado], 1)))
+            plano.areas.append(Area(APOYO, relleno.etiqueta("fondo"), Rect(x, fila, libres[lado], 1)))

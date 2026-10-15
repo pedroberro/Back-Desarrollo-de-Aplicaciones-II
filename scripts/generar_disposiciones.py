@@ -1,11 +1,14 @@
-"""Generates V15__disposiciones_de_planta.sql: lays out every floor of the demo catalog with the
-layout assigned to its building (see disposiciones/), checks the result, and writes the UPDATEs.
+"""Generates a V<n>__disposiciones_de_planta.sql migration: lays out every floor of the demo
+catalog with the layout assigned to its building (see disposiciones/), checks the result, and
+writes the UPDATEs. Each migration re-lays out every floor, so it can be generated again any time.
 
-Run from the back folder:
-    python3 scripts/generar_disposiciones.py            writes the migration
-    python3 scripts/generar_disposiciones.py --ascii    also prints every floor as text
-    python3 scripts/generar_disposiciones.py --json f   also dumps the plans to f
+Run from the back folder, with the next free migration version:
+    python3 scripts/generar_disposiciones.py V16            writes V16__disposiciones_de_planta.sql
+    python3 scripts/generar_disposiciones.py V16 --ascii    also prints every floor as text
+    python3 scripts/generar_disposiciones.py V16 --json f   also dumps the plans to f
 
+A version already applied in a database must never be rewritten (Flyway rejects the changed
+checksum): once V16 is deployed, the next change goes to V17.
 Ids and codes are kept, so existing bookings and blocks keep pointing to the same spaces.
 """
 import json
@@ -14,32 +17,32 @@ from pathlib import Path
 
 import generar_catalogo as catalogo
 from disposiciones import REGISTRO
-from disposiciones.modelo import APOYO, EXTERIOR, NUCLEO, PASILLO, NoEntra, PisoDatos, validar
+from disposiciones.modelo import APOYO, EXTERIOR, NUCLEO, PASILLO, NoEntra, PisoDatos, unir_apoyos, validar
 from disposiciones.textos import completar
 
 # Layout of each building; a list assigns floor by floor, top floor first. Torre Callao stays as
 # the wireframes draw it. A floor that does not fit its layout tries the ones in RESPALDO.
 ASIGNACION = {
     "Torre Callao": "PASILLO_CENTRAL",
-    "Nodo Palermo": "PEINE",
-    "Distrito Norte": "NUCLEO_CENTRAL",
+    "Nodo Palermo": ["ISLAS", "PEINE", "ISLAS"],
+    "Distrito Norte": ["DOBLE_PASILLO", "NUCLEO_CENTRAL", "NUCLEO_CENTRAL"],
     "Casa Barracas": "EN_L",
-    "Polo Tecnológico": "PEINE",
+    "Polo Tecnológico": ["PEINE", "ISLAS", "PEINE"],
     "Estación Retiro": "NUCLEO_CENTRAL",
     "Estudio Almagro": "EN_L",
-    "Sede Constitución": "PASILLO_CENTRAL",
-    "Sede Avellaneda": ["PEINE", "EN_L"],
-    "Ribera Puerto Madero": "NUCLEO_CENTRAL",
+    "Sede Constitución": "DOBLE_PASILLO",
+    "Sede Avellaneda": ["ISLAS", "EN_L"],
+    "Ribera Puerto Madero": ["NUCLEO_CENTRAL", "DOBLE_PASILLO", "NUCLEO_CENTRAL"],
     "Ribera Tigre": "EN_L",
     "Ribera Barracas": ["PASILLO_CENTRAL", "PEINE"],
-    "Casa Lumen": ["EN_L", "PEINE", "EN_L"],
-    "Delta Centro": "NUCLEO_CENTRAL",
+    "Casa Lumen": ["EN_L", "ISLAS", "EN_L"],
+    "Delta Centro": ["NUCLEO_CENTRAL", "DOBLE_PASILLO", "NUCLEO_CENTRAL"],
     "Delta Quilmes": ["PEINE", "EN_L"],
 }
 
-RESPALDO = ["PEINE", "PASILLO_CENTRAL"]
+RESPALDO = ["PEINE", "ISLAS", "PASILLO_CENTRAL"]
 
-DESTINO = Path(__file__).resolve().parent.parent / "src/main/resources/db/migration/V15__disposiciones_de_planta.sql"
+MIGRACIONES = Path(__file__).resolve().parent.parent / "src/main/resources/db/migration"
 SIMBOLO = {PASILLO: "=", NUCLEO: "#", APOYO: "+", EXTERIOR: "~"}
 
 
@@ -70,6 +73,7 @@ def disponer(piso, codigo):
             continue
         if candidata != codigo:
             print(f"    queda en {candidata}")
+        unir_apoyos(plano)
         return plano
     raise SystemExit(f"{piso.edificio} · {piso.nombre} no entra en ninguna disposición")
 
@@ -160,8 +164,11 @@ def a_json(planos):
 
 
 def main(args):
+    if not args or not args[0].startswith("V") or not args[0][1:].isdigit():
+        raise SystemExit(__doc__)
+    destino = MIGRACIONES / f"{args[0]}__disposiciones_de_planta.sql"
     planos = planificar()
-    with open(DESTINO, "w", encoding="utf-8", newline="\n") as f:
+    with open(destino, "w", encoding="utf-8", newline="\n") as f:
         f.write(sql(planos))
     if "--ascii" in args:
         for piso, plano in planos:

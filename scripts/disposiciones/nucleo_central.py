@@ -9,7 +9,7 @@ core; kitchen and lounge sit beside the core, bathrooms under the elevators.
     ==================         row 4   corridor
     [SALA] C C C C C C         row 5   south facade
 """
-from .modelo import APOYO, NUCLEO, PASILLO, Area, Espacio, NoEntra, Plano, Rect, Servicio, cubiculos, salas
+from .modelo import APOYO, NUCLEO, PASILLO, Area, Espacio, NoEntra, Plano, Rect, Servicio, cubiculos, rellenos_para, salas
 
 CODIGO = "NUCLEO_CENTRAL"
 ETIQUETA = "Núcleo central"
@@ -30,10 +30,11 @@ def disponer(piso):
 
     plano = Plano(CODIGO, COLUMNAS, FILAS, ["NORTE", "SUR", "ESTE", "OESTE"] if piso.luz else ["NORTE", "SUR"],
                   acceso="el pasillo que rodea el núcleo")
+    relleno = rellenos_para(piso)
     pendientes = salas(piso)
     # South first: the north facade keeps more room for cubicles, which want the light.
-    _fachada(plano, codigos[norte:], 5, "sur", pendientes)
-    _fachada(plano, codigos[:norte], 0, "norte", pendientes)
+    _fachada(plano, codigos[norte:], 5, "sur", pendientes, relleno)
+    _fachada(plano, codigos[:norte], 0, "norte", pendientes, relleno)
 
     plano.areas += [
         Area(PASILLO, "Pasillo", Rect(0, 1, COLUMNAS, 1)),
@@ -41,12 +42,12 @@ def disponer(piso):
         Area(PASILLO, "Pasillo", Rect(0, 2, LADO_PASILLO, 2)),
         Area(PASILLO, "Pasillo", Rect(COLUMNAS - LADO_PASILLO, 2, LADO_PASILLO, 2)),
     ]
-    _nucleo(plano, piso)
-    _zonas(plano, piso, pendientes)
+    _nucleo(plano, piso, relleno)
+    _zonas(plano, piso, pendientes, relleno)
     return plano
 
 
-def _fachada(plano, codigos, fila, nombre, pendientes):
+def _fachada(plano, codigos, fila, nombre, pendientes, relleno):
     """One facade row: the cubicles, and the rooms that fit in what they leave free."""
     libre = COLUMNAS - ANCHO_CUBICULO * len(codigos)
     cuantas = min(len(pendientes), libre // SALA_MINIMA, 2)
@@ -56,7 +57,7 @@ def _fachada(plano, codigos, fila, nombre, pendientes):
             plano.espacios.append(_cubiculo(codigo, x, fila, nombre))
             x += ANCHO_CUBICULO
         if libre:
-            plano.areas.append(Area(APOYO, "Lockers", Rect(x, fila, libre, 1)))
+            plano.areas.append(Area(APOYO, relleno.etiqueta("puestos"), Rect(x, fila, libre, 1)))
         return
 
     anchos = [libre // cuantas + (1 if i < libre % cuantas else 0) for i in range(cuantas)]
@@ -71,7 +72,7 @@ def _fachada(plano, codigos, fila, nombre, pendientes):
     plano.espacios.append(_sala(pendientes.pop(0), Rect(x, fila, anchos[-1], 1), f"Esquina {nombre}{lado_sala[-1]}"))
 
 
-def _nucleo(plano, piso):
+def _nucleo(plano, piso, relleno):
     x = LADO_PASILLO + ZONA
     banos = [s for s in piso.servicios if s[0] == "BANO"]
     if not banos:
@@ -82,12 +83,12 @@ def _nucleo(plano, piso):
     for i, (tipo, nombre, _) in enumerate(banos[:2]):
         plano.servicios.append(Servicio(tipo, nombre, Rect(x + i * mitad, 3, mitad, 1)))
     if len(banos) == 1:
-        plano.areas.append(Area(APOYO, "Instalaciones", Rect(x + mitad, 3, mitad, 1)))
+        plano.areas.append(Area(APOYO, relleno.etiqueta("nucleo"), Rect(x + mitad, 3, mitad, 1)))
     if len(banos) > 2:
         raise NoEntra("más de dos baños")
 
 
-def _zonas(plano, piso, pendientes):
+def _zonas(plano, piso, pendientes, relleno):
     """Left and right of the core: leftover rooms take a whole zone, kitchen and lounge one row."""
     zonas = [(LADO_PASILLO, "oeste"), (LADO_PASILLO + 2 * ZONA, "este")]
     filas_libres = []
@@ -109,7 +110,7 @@ def _zonas(plano, piso, pendientes):
         if (x, y - 1) in sobrantes:
             continue                       # already covered by the zone-high block above
         alto = 2 if (x, y + 1) in sobrantes else 1
-        plano.areas.append(Area(APOYO, "Instalaciones", Rect(x, y, ZONA, alto)))
+        plano.areas.append(Area(APOYO, relleno.etiqueta("isla" if alto == 2 else "fondo"), Rect(x, y, ZONA, alto)))
 
 
 def _cubiculo(codigo, x, fila, fachada):

@@ -8,7 +8,7 @@ which opens onto it. Rooms and services take the long bottom wing.
     [ SALA-A ][ SALA-B ]        row t+1: rooms
     [cocina][baño]              row t+2: services
 """
-from .modelo import APOYO, EXTERIOR, PASILLO, Area, Espacio, Plano, Rect, Servicio, cubiculos, salas
+from .modelo import APOYO, EXTERIOR, PASILLO, Area, Espacio, Plano, Rect, Servicio, cubiculos, rellenos_para, salas
 
 CODIGO = "EN_L"
 ETIQUETA = "En L con terraza"
@@ -33,6 +33,7 @@ def disponer(piso):
     articulos = {"del_exterior": "del patio", "al_exterior": "al patio"} if exterior == "Patio" \
         else {"del_exterior": "de la terraza", "al_exterior": "a la terraza"}
     plano = Plano(CODIGO, COLUMNAS, filas, list(piso.ventanas), acceso="el pasillo que da " + articulos["al_exterior"])
+    relleno = rellenos_para(piso)
 
     plano.areas += [
         Area(EXTERIOR, exterior, Rect(X_TERRAZA, 0, COLUMNAS - X_TERRAZA, filas_ala)),
@@ -44,7 +45,7 @@ def disponer(piso):
         plano.espacios.append(Espacio(codigo, "CUBICULO", 1, Rect(x, i // len(SLOTS), ANCHO_CUBICULO, 1),
                                       ubicacion.format(**articulos)))
     for x, _ in SLOTS[len(codigos) % len(SLOTS) or len(SLOTS):]:
-        plano.areas.append(Area(APOYO, "Lockers", Rect(x, filas_ala - 1, ANCHO_CUBICULO, 1)))
+        plano.areas.append(Area(APOYO, relleno.etiqueta("puestos"), Rect(x, filas_ala - 1, ANCHO_CUBICULO, 1)))
 
     lista = salas(piso)
     x = 0
@@ -59,5 +60,5 @@ def disponer(piso):
         plano.servicios.append(Servicio(tipo, nombre, Rect(x, fila_salas + 1, ancho, 1)))
         x += ancho
     if piso.servicios and x < COLUMNAS:
-        plano.areas.append(Area(APOYO, "Depósito", Rect(x, fila_salas + 1, COLUMNAS - x, 1)))
+        plano.areas.append(Area(APOYO, relleno.etiqueta("fondo"), Rect(x, fila_salas + 1, COLUMNAS - x, 1)))
     return plano
