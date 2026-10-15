@@ -3,9 +3,12 @@ package com.daii.backdaii.service.impl;
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.disponibilidad.ReglasReserva;
 import com.daii.backdaii.domain.entity.Espacio;
+import com.daii.backdaii.domain.entity.MedioPago;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.evento.ReservaCreada;
+import com.daii.backdaii.domain.repository.MedioPagoRepository;
 import com.daii.backdaii.domain.repository.ReservaRepository;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.CrearReservaRequest;
@@ -15,6 +18,7 @@ import com.daii.backdaii.exception.BadRequestException;
 import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.service.ReservaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +33,10 @@ public class ReservaServiceImpl implements ReservaService {
 
     private final ReservaRepository reservaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final MedioPagoRepository medioPagoRepository;
     private final TomaDeFranja tomaDeFranja;
     private final ReglasReserva reglas;
+    private final ApplicationEventPublisher eventos;
     private final Clock reloj;
 
     @Override
@@ -39,6 +45,7 @@ public class ReservaServiceImpl implements ReservaService {
         Usuario usuario = usuario(email);
         LocalDateTime ahora = LocalDateTime.now(reloj);
         Franja franja = TomaDeFranja.franja(request.inicio(), request.fin());
+        MedioPago medioPago = medioPago(usuario, request.medioPagoId());
 
         Espacio espacio = tomaDeFranja.bloquear(request.espacioId());
         reglas.validar(franja, espacio.getPiso().getEdificio().getHorario(), ahora);
@@ -51,7 +58,10 @@ public class ReservaServiceImpl implements ReservaService {
                 .inicio(franja.inicio())
                 .fin(franja.fin())
                 .estado(EstadoReserva.PENDIENTE)
+                .medioPago(medioPago)
                 .build()));
+        // Stays PENDIENTE until the charge, which runs off the request (see CobroServiceImpl).
+        eventos.publishEvent(new ReservaCreada(reserva.getId()));
         return dto(reservaRepository.findDetalleById(reserva.getId()).orElseThrow(), ahora, false);
     }
 
@@ -87,6 +97,8 @@ public class ReservaServiceImpl implements ReservaService {
     @Override
     @Transactional
     public ReservaDTO cancelar(String email, Long id) {
+        // Waits for a charge in flight on this booking, so it reads the state that charge left.
+        reservaRepository.findBloqueadaById(id);
         Reserva reserva = reservaRepository.findDetalleById(id)
                 .filter(r -> r.getUsuario().getEmail().equalsIgnoreCase(email))
                 .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
@@ -100,6 +112,15 @@ public class ReservaServiceImpl implements ReservaService {
 
     private ReservaDTO dto(Reserva reserva, LocalDateTime ahora, boolean conCambios) {
         return Vistas.reserva(reserva, ahora, reglas.cancelable(reserva, ahora), conCambios);
+    }
+
+    /** Optional: without a card the charge uses the customer's main one. */
+    private MedioPago medioPago(Usuario usuario, Long medioPagoId) {
+        if (medioPagoId == null) {
+            return null;
+        }
+        return medioPagoRepository.findByIdAndUsuarioIdAndEliminadoFalse(medioPagoId, usuario.getId())
+                .orElseThrow(() -> new BadRequestException("Elegí uno de tus métodos de pago", "MEDIO_PAGO_INVALIDO"));
     }
 
     private Usuario usuario(String email) {

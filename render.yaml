@@ -32,6 +32,12 @@ services:
       # The Vercel URL. Vercel forwards the browser's Origin header, so it must be allowed.
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      # Asynchronous charging. Turn it on once RABBITMQ_URL points to a hosted broker
+      # (e.g. the amqps:// URL of a free CloudAMQP instance).
+      - key: MENSAJERIA_HABILITADA
+        value: "false"
+      - key: RABBITMQ_URL
+        sync: false
       - key: SHOW_SQL
         value: "false"
       # Links are still printed in the logs while the Gmail credentials are missing.

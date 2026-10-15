@@ -48,6 +48,11 @@ public class Reserva {
     @Column(nullable = false, length = 20)
     private EstadoReserva estado;
 
+    /** Card chosen to pay it. Null means the customer's main card at charge time. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "medio_pago_id")
+    private MedioPago medioPago;
+
     @CreationTimestamp
     @Column(name = "creada_el", nullable = false, updatable = false)
     private LocalDateTime creadaEl;

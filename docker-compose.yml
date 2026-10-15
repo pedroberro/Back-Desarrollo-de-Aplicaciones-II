@@ -1,0 +1,15 @@
+# Local broker for the asynchronous charge of bookings (docs/Integracion.md).
+#   docker compose up -d rabbitmq
+# AMQP on 5672, management console on http://localhost:15672 (guest / guest).
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: planta-libre-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq-data:

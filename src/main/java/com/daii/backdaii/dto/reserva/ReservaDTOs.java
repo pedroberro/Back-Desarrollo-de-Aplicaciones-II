@@ -24,7 +24,9 @@ public final class ReservaDTOs {
     public record CrearReservaRequest(
             @NotNull(message = "Elegí un espacio") Long espacioId,
             @NotNull(message = "Elegí el horario de inicio") LocalDateTime inicio,
-            @NotNull(message = "Elegí el horario de fin") LocalDateTime fin) {
+            @NotNull(message = "Elegí el horario de fin") LocalDateTime fin,
+            /* Card to charge; null charges the customer's main card. */
+            Long medioPagoId) {
     }
 
     /**

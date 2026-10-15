@@ -9,6 +9,7 @@ import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.enums.Rol;
+import com.daii.backdaii.domain.evento.ReservaCreada;
 import com.daii.backdaii.domain.repository.BloqueoRepository;
 import com.daii.backdaii.domain.repository.EspacioRepository;
 import com.daii.backdaii.domain.repository.PisoRepository;
@@ -28,6 +29,7 @@ import com.daii.backdaii.service.EmailService;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -50,8 +51,6 @@ public class AdminReservaServiceImpl implements AdminReservaService {
 
     private static final int MOTIVO_MINIMO = 10;
     private static final int TAMANIO_MAXIMO = 100;
-    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("EEE d MMM", Locale.forLanguageTag("es-AR"));
-    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ReservaRepository reservaRepository;
     private final BloqueoRepository bloqueoRepository;
@@ -61,6 +60,7 @@ public class AdminReservaServiceImpl implements AdminReservaService {
     private final TomaDeFranja tomaDeFranja;
     private final ReglasReserva reglas;
     private final EmailService emailService;
+    private final ApplicationEventPublisher eventos;
     private final Clock reloj;
 
     @Override
@@ -127,14 +127,16 @@ public class AdminReservaServiceImpl implements AdminReservaService {
                 .build()));
 
         emailService.sendAvisoReserva(cliente.getEmail(), cliente.getNombre(), "Te reservaron un espacio",
-                "Un administrador cargó a tu nombre la reserva " + reserva.getCodigo() + ": " + describir(espacio, franja)
-                        + ". Queda pendiente hasta que se confirme.");
+                "Un administrador cargó a tu nombre la reserva " + reserva.getCodigo() + ": " + Vistas.describir(espacio, franja)
+                        + ". Queda pendiente hasta que se cobre con tu tarjeta principal.");
+        eventos.publishEvent(new ReservaCreada(reserva.getId()));
         return detalle(reserva.getId(), ahora);
     }
 
     @Override
     @Transactional
     public ReservaDTO actualizar(String adminEmail, Long id, AdminReservaRequest request) {
+        reservaRepository.findBloqueadaById(id); // waits for a charge in flight, see CobroServiceImpl
         Reserva reserva = reservaRepository.findDetalleById(id)
                 .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
         Usuario admin = usuario(adminEmail);
@@ -163,7 +165,7 @@ public class AdminReservaServiceImpl implements AdminReservaService {
                     .map(Espacio::getCodigo).orElseThrow(() -> new NotFoundException("Espacio no encontrado")));
         }
         if (!franja.equals(franjaAnterior)) {
-            cambios.add("Horario: " + describir(franjaAnterior) + " → " + describir(franja));
+            cambios.add("Horario: " + Vistas.describir(franjaAnterior) + " → " + Vistas.describir(franja));
         }
         if (estado != reserva.getEstado()) {
             cambios.add("Estado: " + etiqueta(reserva.getEstado()) + " → " + etiqueta(estado));
@@ -209,10 +211,11 @@ public class AdminReservaServiceImpl implements AdminReservaService {
     @Override
     @Transactional
     public void eliminar(String adminEmail, Long id) {
+        reservaRepository.findBloqueadaById(id); // waits for a charge in flight, see CobroServiceImpl
         Reserva reserva = reservaRepository.findDetalleById(id)
                 .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
         Usuario cliente = reserva.getUsuario();
-        String descripcion = describir(reserva.getEspacio(), new Franja(reserva.getInicio(), reserva.getFin()));
+        String descripcion = Vistas.describir(reserva.getEspacio(), new Franja(reserva.getInicio(), reserva.getFin()));
         String codigo = reserva.getCodigo();
         reservaRepository.delete(reserva);
 
@@ -250,14 +253,6 @@ public class AdminReservaServiceImpl implements AdminReservaService {
             throw new BadRequestException("Solo se puede reservar a nombre de un cliente");
         }
         return usuario;
-    }
-
-    private static String describir(Espacio espacio, Franja franja) {
-        return espacio.getCodigo() + ", " + describir(franja);
-    }
-
-    private static String describir(Franja franja) {
-        return franja.inicio().format(DIA) + " " + franja.inicio().format(HORA) + "–" + franja.fin().format(HORA);
     }
 
     private static String etiqueta(EstadoReserva estado) {

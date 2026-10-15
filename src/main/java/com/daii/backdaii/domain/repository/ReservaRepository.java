@@ -3,12 +3,14 @@ package com.daii.backdaii.domain.repository;
 import com.daii.backdaii.domain.disponibilidad.Ocupacion;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
@@ -34,6 +36,14 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
 
     @EntityGraph(attributePaths = {"espacio", "espacio.piso", "espacio.piso.edificio", "espacio.piso.edificio.empresa", "usuario", "creadaPor"})
     Optional<Reserva> findDetalleById(Long id);
+
+    /**
+     * Locks the booking row until the transaction ends. Charging and cancelling both go through
+     * here, so a cancellation never overwrites a charge in flight, nor the other way around.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reserva r where r.id = :id")
+    Optional<Reserva> findBloqueadaById(Long id);
 
     /** Bookings shown in a calendar or an agenda, with the customer, so the view needs one query. */
     @EntityGraph(attributePaths = {"espacio", "usuario"})

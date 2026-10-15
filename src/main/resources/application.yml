@@ -31,6 +31,24 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # Broker of the charge queue. Only used with app.mensajeria.habilitada=true.
+  # Locally: docker compose up rabbitmq. In the cloud: the AMQP URL of the provider (amqps://...).
+  rabbitmq:
+    addresses: ${RABBITMQ_URL:amqp://guest:guest@localhost:5672}
+    # Publishing runs right after the booking commits, before the HTTP response: an unreachable
+    # broker must fail fast instead of holding the request for the client's default 60 s.
+    connection-timeout: 5s
+    listener:
+      simple:
+        # A message whose processing fails is not put back at the head of the queue forever:
+        # it is retried a few times here and then dead-lettered to planta-libre.cobros.dlq.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -47,6 +65,23 @@ spring:
           writetimeout: 5000
 
 app:
+  # Asynchronous charging of bookings through RabbitMQ (see docs/Integracion.md). Off by default
+  # so the app still starts without a broker; then bookings stay PENDIENTE until an admin confirms.
+  mensajeria:
+    habilitada: ${MENSAJERIA_HABILITADA:false}
+
+  pasarela:
+    # Response time of the simulated payment provider, so the PENDIENTE state is visible in a demo.
+    demora-ms: ${PASARELA_DEMORA_MS:1500}
+
+  # Pesos per hour of each space kind; a booking is charged per minute.
+  tarifas:
+    por-hora:
+      CUBICULO: 3500
+      SALA_REUNIONES: 9000
+      SALA_PRESENTACIONES: 14000
+      SALA_CONFERENCIAS: 22000
+
   jwt:
     secret: ${JWT_SECRET:myDefaultSecretKeyForDevelopmentOnly2024!@#$%^&*()}
     expiration-ms: 86400000

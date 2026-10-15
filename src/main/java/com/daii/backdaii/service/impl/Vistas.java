@@ -1,5 +1,6 @@
 package com.daii.backdaii.service.impl;
 
+import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.entity.Bloqueo;
 import com.daii.backdaii.domain.entity.Edificio;
 import com.daii.backdaii.domain.entity.Espacio;
@@ -22,14 +23,28 @@ import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaDTO;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 /** Entity to DTO conversions shared by the catalog and booking services. Keeps entities out of the controllers. */
 final class Vistas {
 
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("EEE d MMM", Locale.forLanguageTag("es-AR"));
+    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
+
     private Vistas() {
+    }
+
+    /** "C-101, lun 12 oct 09:00–11:00": how mails and the change log name a booking. */
+    static String describir(Espacio espacio, Franja franja) {
+        return espacio.getCodigo() + ", " + describir(franja);
+    }
+
+    static String describir(Franja franja) {
+        return franja.inicio().format(DIA) + " " + franja.inicio().format(HORA) + "–" + franja.fin().format(HORA);
     }
 
     static Ref ref(Piso piso) {
