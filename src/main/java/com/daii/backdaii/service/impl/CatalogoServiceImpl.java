@@ -15,6 +15,7 @@ import com.daii.backdaii.domain.entity.ServicioPiso;
 import com.daii.backdaii.domain.enums.EstadoEspacio;
 import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.enums.TipoEspacio;
+import com.daii.backdaii.domain.repository.AreaPlanoRepository;
 import com.daii.backdaii.domain.repository.BloqueoRepository;
 import com.daii.backdaii.domain.repository.EdificioRepository;
 import com.daii.backdaii.domain.repository.EmpresaRepository;
@@ -61,6 +62,7 @@ public class CatalogoServiceImpl implements CatalogoService {
     private final PisoRepository pisoRepository;
     private final EspacioRepository espacioRepository;
     private final ServicioPisoRepository servicioPisoRepository;
+    private final AreaPlanoRepository areaPlanoRepository;
     private final ReservaRepository reservaRepository;
     private final BloqueoRepository bloqueoRepository;
     private final Ocupaciones ocupaciones;
@@ -130,7 +132,8 @@ public class CatalogoServiceImpl implements CatalogoService {
                     .count();
             return new PisoResumen(piso.getId(), piso.getNumero(), piso.getNombre(), espacios.size(), cubiculos,
                     espacios.size() - cubiculos,
-                    Vistas.comodidades(piso, serviciosPorPiso.getOrDefault(piso.getId(), List.of())), libres);
+                    Vistas.comodidades(piso, serviciosPorPiso.getOrDefault(piso.getId(), List.of())), libres,
+                    piso.getDisposicion().getEtiqueta());
         }).toList();
 
         EdificioResumen resumen = resumirEdificios(List.of(edificio), espacioRepository.findUbicacionesDeEdificio(edificioId),
@@ -184,7 +187,8 @@ public class CatalogoServiceImpl implements CatalogoService {
             List<Ocupacion> delEspacio = Ocupaciones.de(ocupadas, e.getId());
             return new EspacioEnPlano(
                     e.getId(), e.getCodigo(), e.getTipo(), e.getTipo().getEtiqueta(), e.getCapacidad(),
-                    Boolean.TRUE.equals(e.getVentana()), Vistas.equipamientoCorto(e), Vistas.posicion(e.getPosicion()),
+                    Boolean.TRUE.equals(e.getVentana()), e.getOrientacion(), Vistas.equipamientoCorto(e),
+                    Vistas.posicion(e.getPosicion()),
                     motor.estado(delEspacio, franja),
                     motor.ocupacionEn(delEspacio, franja).map(o -> new FranjaDTO(o.inicio(), o.fin())).orElse(null),
                     FranjaDTO.de(motor.proximoHueco(delEspacio, buscarDesde, horario, largoBuscado, DIAS_BUSQUEDA)
@@ -214,16 +218,20 @@ public class CatalogoServiceImpl implements CatalogoService {
         List<ServicioEnPlano> servicios = servicioPisoRepository.findByPisoIdOrderByPosicionX(pisoId).stream()
                 .map(s -> new ServicioEnPlano(s.getId(), s.getTipo(), s.getNombre(), Vistas.posicion(s.getPosicion())))
                 .toList();
+        List<AreaEnPlano> areas = areaPlanoRepository.findByPisoId(pisoId).stream()
+                .map(a -> new AreaEnPlano(a.getId(), a.getTipo(), a.getEtiqueta(), Vistas.posicion(a.getPosicion())))
+                .toList();
 
         return new PlanoPiso(
                 new PisoInfo(piso.getId(), piso.getNumero(), piso.getNombre(), piso.getPlanoColumnas(),
-                        piso.getFilaPasillo(), piso.getMurosConVentana(),
+                        piso.getPlanoFilas(), piso.getDisposicion().getEtiqueta(), piso.getMurosConVentana(),
                         Vistas.comodidades(piso, servicioPisoRepository.findByPisoIdOrderByPosicionX(pisoId))),
                 Vistas.edificioRef(edificio),
                 new Ref(edificio.getEmpresa().getId(), edificio.getEmpresa().getNombre()),
                 FranjaDTO.de(franja),
                 enPlano,
                 servicios,
+                areas,
                 resumen,
                 otrosPisos,
                 FranjaDTO.de(sugerencia));

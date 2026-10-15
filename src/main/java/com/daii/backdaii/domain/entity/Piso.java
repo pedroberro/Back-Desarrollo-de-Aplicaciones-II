@@ -1,5 +1,6 @@
 package com.daii.backdaii.domain.entity;
 
+import com.daii.backdaii.domain.enums.Disposicion;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,8 +41,12 @@ public class Piso {
     @Column(name = "plano_columnas", nullable = false)
     private Integer planoColumnas;
 
-    @Column(name = "fila_pasillo")
-    private Integer filaPasillo;
+    @Column(name = "plano_filas", nullable = false)
+    private Integer planoFilas;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Disposicion disposicion;
 
     public List<String> getMurosConVentana() {
         return Arrays.stream(ventanas.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();

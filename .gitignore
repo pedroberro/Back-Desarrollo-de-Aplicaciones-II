@@ -38,3 +38,6 @@ build/
 ### Env ###
 .env
 application-local.yml
+
+# Python bytecode of the catalog generators
+__pycache__/

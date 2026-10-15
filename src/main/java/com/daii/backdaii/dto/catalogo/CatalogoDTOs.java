@@ -3,6 +3,7 @@ package com.daii.backdaii.dto.catalogo;
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.disponibilidad.ReglasReserva;
 import com.daii.backdaii.domain.enums.EstadoEspacio;
+import com.daii.backdaii.domain.enums.TipoArea;
 import com.daii.backdaii.domain.enums.TipoEspacio;
 import com.daii.backdaii.domain.enums.TipoServicio;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -72,7 +73,9 @@ public final class CatalogoDTOs {
             int cubiculos,
             int salas,
             List<Comodidad> comodidades,
-            int libres) {
+            int libres,
+            /** Label of the floor's layout, e.g. "Núcleo central". */
+            String disposicion) {
     }
 
     public record EdificioDetalle(
@@ -98,7 +101,9 @@ public final class CatalogoDTOs {
             int numero,
             String nombre,
             int columnas,
-            Integer filaPasillo,
+            int filas,
+            /** Label of the layout, e.g. "Núcleo central". The plan is drawn from the areas, not from this. */
+            String disposicion,
             List<String> ventanas,
             List<Comodidad> comodidades) {
     }
@@ -113,6 +118,8 @@ public final class CatalogoDTOs {
             String tipoEtiqueta,
             int capacidad,
             boolean ventana,
+            /** Side of the window: Norte, Sur, Este, Oeste; Interior when it has none. */
+            String orientacion,
             /** Short names ("Monitor", "Wi-Fi") for the tooltip and the list. */
             List<String> equipamiento,
             Posicion posicion,
@@ -125,6 +132,10 @@ public final class CatalogoDTOs {
     }
 
     public record ServicioEnPlano(Long id, TipoServicio tipo, String nombre, Posicion posicion) {
+    }
+
+    /** Corridor, core, support area or terrace. */
+    public record AreaEnPlano(Long id, TipoArea tipo, String etiqueta, Posicion posicion) {
     }
 
     public record ResumenPlano(int total, int libres, int ocupados, int bloqueados) {
@@ -140,6 +151,7 @@ public final class CatalogoDTOs {
             FranjaDTO franja,
             List<EspacioEnPlano> espacios,
             List<ServicioEnPlano> servicios,
+            List<AreaEnPlano> areas,
             /** Counted over the spaces that pass the filters. */
             ResumenPlano resumen,
             /** Same slot on the other floors of the building. */

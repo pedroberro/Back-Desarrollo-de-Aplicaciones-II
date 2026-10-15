@@ -181,6 +181,22 @@ def piso_sql(edificio_ref, edificio_nombre, numero, cubiculos, salas, amenities,
         x += ancho
 
 
+def pisos_de(edificio):
+    """Floors of a building as (numero, cubiculos, salas, amenities), top floor first."""
+    for _, _, _, edificios in EMPRESAS:
+        for ed_nombre, *_, pisos in edificios:
+            if ed_nombre != edificio:
+                continue
+            if pisos == "torre":
+                return list(TORRE_CALLAO)
+            return [(numero, 7 + (numero * 5 + len(ed_nombre)) % 8, salas, amen) for numero, salas, amen in pisos]
+    raise KeyError(edificio)
+
+
+def nombres_de_edificios():
+    return [ed[0] for _, _, _, eds in EMPRESAS for ed in eds]
+
+
 def main():
     out = [
         "-- Demo catalog generated from the wireframes (see docs). Torre Callao matches them floor by floor.",
@@ -190,19 +206,14 @@ def main():
     for nombre, rubro, tono, edificios in EMPRESAS:
         out.append(f"INSERT INTO empresas (nombre, rubro, tono) VALUES ({q(nombre)}, {q(rubro)}, {q(tono)});")
         empresa_ref = f"(SELECT id FROM empresas WHERE nombre = {q(nombre)})"
-        for ed_nombre, direccion, localidad, abre, cierra, ed_tono, pisos in edificios:
+        for ed_nombre, direccion, localidad, abre, cierra, ed_tono, _ in edificios:
             out.append(
                 "INSERT INTO edificios (empresa_id, nombre, direccion, localidad, hora_apertura, hora_cierre, tono) "
                 f"VALUES ({empresa_ref}, {q(ed_nombre)}, {q(direccion)}, {q(localidad)}, {q(abre)}, {q(cierra)}, {q(ed_tono)});"
             )
             edificio_ref = f"(SELECT id FROM edificios WHERE nombre = {q(ed_nombre)})"
-            if pisos == "torre":
-                for numero, cub, salas, amen in TORRE_CALLAO:
-                    piso_sql(edificio_ref, ed_nombre, numero, cub, salas, amen, out)
-            else:
-                for numero, salas, amen in pisos:
-                    cub = 7 + (numero * 5 + len(ed_nombre)) % 8
-                    piso_sql(edificio_ref, ed_nombre, numero, cub, salas, amen, out)
+            for numero, cub, salas, amen in pisos_de(ed_nombre):
+                piso_sql(edificio_ref, ed_nombre, numero, cub, salas, amen, out)
         out.append("")
     path = Path(__file__).resolve().parent.parent / "src/main/resources/db/migration/V12__seed_catalogo.sql"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -210,4 +221,5 @@ def main():
     print(len(out), "lines")
 
 
-main()
+if __name__ == "__main__":
+    main()

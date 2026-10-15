@@ -92,13 +92,47 @@ Los permisos nuevos, `RESERVAS_GESTIONAR` y `BLOQUEOS_GESTIONAR`, se agregan al 
 - **Hora local del edificio.** Las reservas se guardan en hora local y el "ahora" sale de un `Clock` con zona `America/Argentina/Buenos_Aires`, porque Render corre en UTC. Sin esto, a las 21 h de Buenos Aires el servidor creería que ya es el día siguiente.
 - **"Libres hoy" que no miente de noche.** Los listados cuentan los espacios libres de la jornada de cada edificio: hoy mientras quede lugar para una reserva mínima, y el siguiente día hábil cuando ya cerró. La etiqueta dice a qué día se refiere.
 - **Filtros en la URL.** Fecha, franja, tipo, capacidad, ventana, vista y espacio abierto viven en la URL: una franja se comparte o se recarga tal cual, y el botón atrás deshace un filtro.
-- **Plano como grilla, no como imagen.** Cada espacio y servicio tiene una posición en una grilla de 42 columnas. El plano se dibuja con esa grilla, así que pintar estados, atenuar lo que no cumple un filtro y calcular distancias ("Baño A · 14 m") sale de los mismos datos.
+- **Plano como grilla, no como imagen.** Cada espacio y servicio tiene una posición en una grilla (42 columnas en casi todos los pisos). El plano se dibuja con esa grilla, así que pintar estados, atenuar lo que no cumple un filtro y calcular distancias ("Baño A · 14 m") sale de los mismos datos. La estructura también es dato: ver la sección 7.
 - **Estados legibles sin color.** Libre, ocupado, bloqueado, seleccionado y servicio combinan color, trama y un símbolo distinto, como pide el sistema de diseño.
 - **Datos de demostración vivos.** El catálogo se carga con una migración (`V12`, generada por `scripts/generar_catalogo.py`). Las reservas no: un catálogo sin reservas muestra todo libre y no prueba nada. `DatosDemoInicializador` llena al arrancar los días hábiles de las dos semanas alrededor de hoy, rodeando las reservas reales, y en cada reinicio solo agrega los días nuevos. Se desactiva con `DEMO_HABILITADO=false`.
 
 ---
 
-## 7. API
+## 7. Disposiciones de planta
+
+No todos los pisos son iguales. Cada piso tiene una de cuatro disposiciones:
+
+| Disposición | Cómo es | Dónde |
+|---|---|---|
+| **Pasillo central** | Filas de cubículos, un pasillo de lado a lado, una fila de salas y otra de servicios. Es la planta de los wireframes. | Torre Callao, Sede Constitución y algunos pisos sueltos |
+| **Núcleo central** | Ascensores y escaleras en el medio, un pasillo que los rodea y los puestos sobre las fachadas norte y sur. Las salas van a las esquinas o junto al núcleo, y los baños debajo de los ascensores. | Distrito Norte, Estación Retiro, Ribera Puerto Madero, Delta Centro |
+| **Peine** | Salas en la cabecera, un pasillo transversal y un pasillo central que baja entre dos alas de cubículos. Los servicios cierran el fondo a los dos lados. | Nodo Palermo, Polo Tecnológico y otros |
+| **En L con terraza** | El ala de cubículos con su pasillo sobre el lado oeste; el pasillo dobla abajo y pasa bajo la terraza, que da a él. En planta baja la terraza es un patio. Los puestos que dan a la terraza tienen ventanal. | Casa Barracas, Estudio Almagro, Ribera Tigre, Casa Lumen |
+
+**La disposición es un dato, no código.** El plano se arma con rectángulos en la grilla: los espacios y los servicios, como antes, y ahora también las áreas estructurales de la tabla `areas_plano`: `PASILLO`, `NUCLEO` (ascensores y escaleras), `APOYO` (lockers, depósito, instalaciones) y `EXTERIOR` (terraza o patio). La API manda esos rectángulos y el front los dibuja sin saber de qué disposición se trata. `pisos.disposicion` es solamente el nombre que se muestra en el encabezado del plano y en la lista de pisos.
+
+**Ventanas.** Cada espacio guarda de qué lado tiene la ventana (`orientacion`). El front dibuja la marca azul sobre el muro exterior o, si da a una terraza o patio, sobre el borde que la mira.
+
+**Cómo se generan.** `scripts/generar_disposiciones.py` toma el contenido de cada piso del catálogo (cuántos cubículos, qué salas, qué servicios) y lo reparte con la disposición asignada a su edificio. Cada disposición es un módulo en `scripts/disposiciones/`. Antes de escribir nada, el generador valida cada piso:
+
+- que nada se superponga y que todo quede dentro de la grilla;
+- que estén todos los espacios y servicios del piso;
+- que se llegue caminando a cada espacio reservable, por pasillos o por la zona abierta de cubículos, nunca a través de una sala cerrada;
+- que las terrazas den a un pasillo.
+
+Si un piso no entra en su disposición (por ejemplo, 14 cubículos y 3 salas no caben en un núcleo central), el generador prueba con la siguiente y lo informa. El resultado es la migración `V15`, que actualiza posiciones, ventanas y textos **sin cambiar ids ni códigos**: las reservas y los bloqueos existentes siguen apuntando a los mismos espacios. La `V12` no se toca, porque ya está aplicada.
+
+```bash
+python3 scripts/generar_disposiciones.py --ascii
+```
+
+dibuja cada piso en texto para revisarlo sin levantar la aplicación.
+
+**Para agregar una disposición:** crear un módulo en `scripts/disposiciones/` con `CODIGO`, `ETIQUETA` y `disponer(piso)`, registrarlo en `disposiciones/__init__.py`, sumar el código y su nombre en `Disposicion.java`, y asignarlo a los edificios en `ASIGNACION`. El back y el front no cambian.
+
+---
+
+## 8. API
 
 | Método | Ruta | Permiso |
 |---|---|---|
@@ -114,7 +148,7 @@ Los permisos nuevos, `RESERVAS_GESTIONAR` y `BLOQUEOS_GESTIONAR`, se agregan al 
 
 ---
 
-## 8. Verificación
+## 9. Verificación
 
 - **Tests unitarios** del motor y de las reglas (`MotorDisponibilidadTest`, `ReglasReservaTest`): contigüidad, envolvimiento, edición sin autochoque, prioridad del bloqueo, huecos, fin de semana, alternativas y sugerencias. Junto con los anteriores, 25 tests en verde.
 - **Prueba de concurrencia** de diez reservas simultáneas sobre la misma franja: una se crea, nueve reciben `409`.
@@ -122,7 +156,7 @@ Los permisos nuevos, `RESERVAS_GESTIONAR` y `BLOQUEOS_GESTIONAR`, se agregan al 
 
 ---
 
-## 9. Límites conocidos
+## 10. Límites conocidos
 
 - La liberación automática por no presentarse (no-show) necesita un check-in, que no existe.
 - No hay reservas recurrentes ni invitados.
