@@ -78,11 +78,26 @@ El administrador puede pisar una reserva ajena, pero nunca en silencio.
 
 - **Motivo obligatorio.** Editar o cancelar una reserva de otra persona exige un motivo de al menos 10 caracteres.
 - **Bitácora.** Cada cambio queda en `reserva_cambios` con autor, motivo y el detalle de qué cambió ("Horario: lun 28 sep 09:00–12:00 → lun 28 sep 10:00–13:00; Estado: Pendiente → Confirmada"). El cliente la ve en el detalle de su reserva.
-- **Aviso por mail.** El cliente recibe un mail cuando le crean, modifican o borran una reserva. Usa el mismo `EmailService` (Strategy y Template Method) de la entrega anterior, con un método nuevo.
-- **Bloqueos todo o nada.** "Piso entero" crea un bloqueo por espacio con un mismo grupo. Si algún espacio tiene reservas en ese horario, no se crea ninguno y la respuesta dice cuáles hay que mover.
+- **Aviso por mail.** El cliente recibe un mail cuando le crean, modifican, cancelan o borran una reserva, o cuando un bloqueo se la lleva puesta. Los mails de cancelación salen después del commit y dicen cuánto se devuelve.
+- **Bloqueos sobre reservas.** "Piso entero" crea un bloqueo por espacio con un mismo grupo, todo o nada. Si en ese horario hay reservas, la API responde 409 con la lista; el administrador confirma y se repite el pedido con `cancelarReservas`: cada reserva se cancela con reintegro total, queda en su bitácora con el motivo del bloqueo y el cliente recibe un mail. Un bloqueo nunca pisa otro bloqueo.
 - **Borrar o cancelar.** Borrar elimina la reserva y su bitácora; para liberar la franja sin perder el registro está el estado Cancelada.
 
 Los permisos nuevos, `RESERVAS_GESTIONAR` y `BLOQUEOS_GESTIONAR`, se agregan al rol ADMIN y se exigen de forma declarativa con `@PreAuthorize` a nivel de controlador. El cliente reserva con `RESERVAS_CREAR`, que el administrador no tiene: el administrador reserva siempre a nombre de un cliente.
+
+### Política de cancelación y cobro
+
+La reserva se cobra al hacerla (el cobro asincrónico de [Integracion.md](Integracion.md) la confirma en segundos). Lo que se devuelve al cancelar depende de quién cancela y con cuánta anticipación:
+
+| Quién cancela | Cuándo | Reintegro |
+|---|---|---|
+| El cliente | 24 h o más antes del inicio | 100 % |
+| El cliente | Entre 24 h y 2 h antes | 50 % |
+| El cliente | Menos de 2 h antes | 0 %: puede cancelar para liberar el lugar |
+| Un administrador (cancelar, borrar o bloquear) | Siempre | 100 % |
+
+Una reserva ya empezada no se cancela. Una pendiente (todavía sin cobrar) se cancela sin costo, y el cobro que estaba en la cola ya no se hace. Los valores viven en `PoliticaCancelacion` y llegan al front en `condiciones`: el paso de confirmación muestra el total y la política, y el diálogo de cancelar dice cuánto se devuelve en ese momento.
+
+Todas las cancelaciones pasan por un mismo componente, `Cancelaciones`, dentro de la transacción de quien cancela y con la fila de la reserva bloqueada. Calcula el porcentaje, pide el reintegro a la pasarela, marca la reserva y publica `ReservaCancelada` para el mail. **Si la pasarela rechaza el reintegro, la transacción hace rollback y la reserva sigue activa**: nunca queda una reserva cancelada con la plata sin devolver. Cada cobro se reintegra una sola vez (`cobros.monto_reintegrado`, migración V17).
 
 ---
 

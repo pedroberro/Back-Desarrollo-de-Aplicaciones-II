@@ -1,5 +1,6 @@
 package com.daii.backdaii.service.impl;
 
+import com.daii.backdaii.domain.cobro.Tarifario;
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.disponibilidad.Horario;
 import com.daii.backdaii.domain.disponibilidad.MotorDisponibilidad;
@@ -68,6 +69,7 @@ public class CatalogoServiceImpl implements CatalogoService {
     private final Ocupaciones ocupaciones;
     private final MotorDisponibilidad motor;
     private final ReglasReserva reglas;
+    private final Tarifario tarifario;
     private final Clock reloj;
 
     // ---- Empresas and edificios -------------------------------------------------------------
@@ -187,7 +189,8 @@ public class CatalogoServiceImpl implements CatalogoService {
             List<Ocupacion> delEspacio = Ocupaciones.de(ocupadas, e.getId());
             return new EspacioEnPlano(
                     e.getId(), e.getCodigo(), e.getTipo(), e.getTipo().getEtiqueta(), e.getCapacidad(),
-                    Boolean.TRUE.equals(e.getVentana()), e.getOrientacion(), Vistas.equipamientoCorto(e),
+                    Boolean.TRUE.equals(e.getVentana()), e.getOrientacion(), tarifario.porHora(e.getTipo()),
+                    Vistas.equipamientoCorto(e),
                     Vistas.posicion(e.getPosicion()),
                     motor.estado(delEspacio, franja),
                     motor.ocupacionEn(delEspacio, franja).map(o -> new FranjaDTO(o.inicio(), o.fin())).orElse(null),
@@ -234,6 +237,7 @@ public class CatalogoServiceImpl implements CatalogoService {
                 areas,
                 resumen,
                 otrosPisos,
+                reglas.condiciones(),
                 FranjaDTO.de(sugerencia));
     }
 
@@ -267,7 +271,8 @@ public class CatalogoServiceImpl implements CatalogoService {
                 Vistas.edificioRef(edificio),
                 new Ref(edificio.getEmpresa().getId(), edificio.getEmpresa().getNombre()),
                 cercanos,
-                reglas.condiciones());
+                reglas.condiciones(),
+                tarifario.porHora(e.getTipo()));
     }
 
     @Override

@@ -11,7 +11,13 @@ public interface PasarelaPagos {
     /** Declines come back as a result; only technical failures throw. */
     ResultadoPago cobrar(SolicitudPago solicitud);
 
+    /** Gives back part or all of an approved charge. Same contract: declines come back as a result. */
+    ResultadoPago reintegrar(SolicitudReintegro solicitud);
+
     record SolicitudPago(String referenciaInterna, BigDecimal monto, String ultimos4, String titular) {
+    }
+
+    record SolicitudReintegro(String referenciaCobro, BigDecimal monto) {
     }
 
     record ResultadoPago(boolean aprobado, String referencia, String motivoRechazo) {

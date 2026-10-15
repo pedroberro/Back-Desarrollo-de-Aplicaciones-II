@@ -2,6 +2,7 @@ package com.daii.backdaii.service.impl;
 
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.entity.Bloqueo;
+import com.daii.backdaii.domain.entity.Cobro;
 import com.daii.backdaii.domain.entity.Edificio;
 import com.daii.backdaii.domain.entity.Espacio;
 import com.daii.backdaii.domain.entity.Piso;
@@ -19,6 +20,8 @@ import com.daii.backdaii.dto.reserva.ReservaDTOs.BloqueoDTO;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.Cambio;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ClienteRef;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.EspacioRef;
+import com.daii.backdaii.dto.reserva.ReservaDTOs.Pago;
+import com.daii.backdaii.dto.reserva.ReservaDTOs.ReintegroSiCancela;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaDTO;
 
 import java.time.Duration;
@@ -100,6 +103,11 @@ final class Vistas {
     }
 
     static ReservaDTO reserva(Reserva r, LocalDateTime ahora, boolean cancelable, boolean conCambios) {
+        return reserva(r, ahora, cancelable, conCambios, null, null);
+    }
+
+    static ReservaDTO reserva(Reserva r, LocalDateTime ahora, boolean cancelable, boolean conCambios,
+                              Cobro cobro, ReintegroSiCancela reintegro) {
         Espacio espacio = r.getEspacio();
         Piso piso = espacio.getPiso();
         Edificio edificio = piso.getEdificio();
@@ -123,7 +131,15 @@ final class Vistas {
                 !r.getCreadaPor().getId().equals(r.getUsuario().getId()),
                 cancelable,
                 r.getCreadaEl(),
-                cambios);
+                cambios,
+                cobro == null ? null : pago(cobro),
+                reintegro);
+    }
+
+    static Pago pago(Cobro c) {
+        String tarjeta = c.getMedioPago() == null ? null : c.getMedioPago().getNumeroTarjetaMasked();
+        return new Pago(c.getMonto(), c.getEstado(), tarjeta == null ? null : tarjeta.substring(tarjeta.length() - 4),
+                c.getMontoReintegrado());
     }
 
     static BloqueoDTO bloqueo(Bloqueo b) {

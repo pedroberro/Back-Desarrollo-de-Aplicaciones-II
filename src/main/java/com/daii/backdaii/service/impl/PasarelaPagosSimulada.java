@@ -36,6 +36,12 @@ public class PasarelaPagosSimulada implements PasarelaPagos {
         return ResultadoPago.aprobado("SIM-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     }
 
+    /** Refunds go through without delay: the customer is waiting for the cancellation answer. */
+    @Override
+    public ResultadoPago reintegrar(SolicitudReintegro solicitud) {
+        return ResultadoPago.aprobado("SIM-R-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+    }
+
     private void esperar() {
         if (demoraMs <= 0) {
             return;

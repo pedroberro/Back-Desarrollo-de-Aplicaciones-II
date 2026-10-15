@@ -4,19 +4,25 @@ import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.disponibilidad.MotorDisponibilidad;
 import com.daii.backdaii.domain.entity.Bloqueo;
 import com.daii.backdaii.domain.entity.Espacio;
+import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
+import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.evento.ReservaCancelada;
 import com.daii.backdaii.domain.repository.BloqueoRepository;
 import com.daii.backdaii.domain.repository.EspacioRepository;
 import com.daii.backdaii.domain.repository.PisoRepository;
+import com.daii.backdaii.domain.repository.ReservaRepository;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.Alcance;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.BloqueoDTO;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.BloqueosCreados;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.CrearBloqueoRequest;
+import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaAfectada;
 import com.daii.backdaii.exception.BadRequestException;
 import com.daii.backdaii.exception.ConflictException;
 import com.daii.backdaii.exception.FranjaTomadaException;
 import com.daii.backdaii.exception.NotFoundException;
+import com.daii.backdaii.exception.ReservasAfectadasException;
 import com.daii.backdaii.service.BloqueoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -40,6 +47,8 @@ public class BloqueoServiceImpl implements BloqueoService {
     private final EspacioRepository espacioRepository;
     private final PisoRepository pisoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ReservaRepository reservaRepository;
+    private final Cancelaciones cancelaciones;
     private final TomaDeFranja tomaDeFranja;
     private final Clock reloj;
 
@@ -58,6 +67,31 @@ public class BloqueoServiceImpl implements BloqueoService {
                 .map(e -> tomaDeFranja.bloquear(e.getId()))
                 .toList();
 
+        // Bookings in the way: the administrator confirms, and they are cancelled with a full refund.
+        String motivoBloqueo = request.motivo().getEtiqueta().toLowerCase(Locale.ROOT)
+                + (request.detalle() == null || request.detalle().isBlank() ? "" : ": " + request.detalle().trim());
+        List<Reserva> afectadas = reservaRepository.findEnRango(espacios.stream().map(Espacio::getId).toList(),
+                        franja.inicio(), franja.fin(), EstadoReserva.ACTIVOS).stream()
+                .filter(r -> r.getFin().isAfter(ahora))
+                .toList();
+        if (!afectadas.isEmpty() && !Boolean.TRUE.equals(request.cancelarReservas())) {
+            throw new ReservasAfectadasException((afectadas.size() == 1 ? "Hay 1 reserva" : "Hay " + afectadas.size() + " reservas")
+                    + " en ese horario. Si bloqueás igual, se cancelan, se devuelve el total y se avisa a cada cliente por mail.",
+                    afectadas.stream().map(r -> new ReservaAfectada(r.getId(), r.getCodigo(), r.getEspacio().getCodigo(),
+                            r.getUsuario().getNombre(), r.getInicio(), r.getFin())).toList());
+        }
+        for (Reserva afectada : afectadas) {
+            Reserva reserva = reservaRepository.findBloqueadaById(afectada.getId()).orElseThrow();
+            if (!reserva.getEstado().ocupa()) {
+                continue;                   // cancelled meanwhile
+            }
+            reserva.registrarCambio(admin, "Bloqueo del espacio: " + motivoBloqueo,
+                    "Estado: " + etiqueta(reserva.getEstado()) + " → Cancelada");
+            cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.BLOQUEO, motivoBloqueo);
+        }
+        reservaRepository.flush();
+
+        // What is left in the way are other blocks: those are never overridden.
         List<String> ocupados = new ArrayList<>();
         for (Espacio espacio : espacios) {
             try {
@@ -67,8 +101,8 @@ public class BloqueoServiceImpl implements BloqueoService {
             }
         }
         if (!ocupados.isEmpty()) {
-            throw new ConflictException((ocupados.size() == 1 ? ocupados.get(0) + " tiene" : String.join(", ", ocupados) + " tienen")
-                    + " reservas o bloqueos en ese horario. Movelos o cancelalos antes de bloquear.", FranjaTomadaException.CODE);
+            throw new ConflictException((ocupados.size() == 1 ? ocupados.get(0) + " ya tiene" : String.join(", ", ocupados) + " ya tienen")
+                    + " un bloqueo en ese horario. Modificá o eliminá ese bloqueo primero.", FranjaTomadaException.CODE);
         }
 
         UUID grupo = UUID.randomUUID();
@@ -100,6 +134,11 @@ public class BloqueoServiceImpl implements BloqueoService {
         Bloqueo bloqueo = bloqueoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Bloqueo no encontrado"));
         bloqueoRepository.deleteAll(todoElGrupo ? bloqueoRepository.findByGrupo(bloqueo.getGrupo()) : List.of(bloqueo));
+    }
+
+    private static String etiqueta(EstadoReserva estado) {
+        String nombre = estado.name().toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(nombre.charAt(0)) + nombre.substring(1);
     }
 
     private List<Espacio> espaciosDelAlcance(CrearBloqueoRequest request) {

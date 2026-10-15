@@ -1,6 +1,7 @@
 package com.daii.backdaii.exception;
 
 import com.daii.backdaii.dto.reserva.ReservaDTOs.FranjaTomada;
+import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservasAfectadas;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<FranjaTomada> handleFranjaTomada(FranjaTomadaException ex) {
         return ResponseEntity.status(ex.getStatus())
                 .body(new FranjaTomada(ex.getMessage(), ex.getCode(), ex.getAlternativas()));
+    }
+
+    @ExceptionHandler(ReservasAfectadasException.class)
+    public ResponseEntity<ReservasAfectadas> handleReservasAfectadas(ReservasAfectadasException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(new ReservasAfectadas(ex.getMessage(), ex.getCode(), ex.getReservas()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

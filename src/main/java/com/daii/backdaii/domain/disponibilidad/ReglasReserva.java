@@ -1,5 +1,6 @@
 package com.daii.backdaii.domain.disponibilidad;
 
+import com.daii.backdaii.domain.cobro.PoliticaCancelacion;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.exception.BadRequestException;
 import org.springframework.stereotype.Component;
@@ -18,12 +19,16 @@ public class ReglasReserva {
     public static final Duration MAXIMA = Duration.ofHours(8);
     public static final int ANTICIPACION_MAXIMA_DIAS = 60;
 
-    public record Condiciones(int pasoMinutos, int minimaMinutos, int maximaMinutos, int anticipacionMaximaDias) {
+    /** Booking rules and the cancellation policy, as the client shows them. */
+    public record Condiciones(int pasoMinutos, int minimaMinutos, int maximaMinutos, int anticipacionMaximaDias,
+                              int cancelacionSinCargoHoras, int cancelacionConRetencionHoras, int reintegroParcialPorcentaje) {
     }
 
     public Condiciones condiciones() {
         return new Condiciones((int) MotorDisponibilidad.PASO.toMinutes(), (int) MINIMA.toMinutes(),
-                (int) MAXIMA.toMinutes(), ANTICIPACION_MAXIMA_DIAS);
+                (int) MAXIMA.toMinutes(), ANTICIPACION_MAXIMA_DIAS,
+                (int) PoliticaCancelacion.SIN_CARGO.toHours(), (int) PoliticaCancelacion.CON_RETENCION.toHours(),
+                PoliticaCancelacion.REINTEGRO_PARCIAL);
     }
 
     public void validar(Franja franja, Horario horario, LocalDateTime ahora) {

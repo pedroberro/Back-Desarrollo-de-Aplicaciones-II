@@ -247,5 +247,5 @@ Sin `MENSAJERIA_HABILITADA=true` la aplicación arranca igual que antes, sin nec
 
 - **Publicación después del commit, sin outbox.** Si la aplicación se cae justo entre el commit de la reserva y el envío del mensaje, la reserva queda `PENDIENTE` sin cobro. Para la entrega obligatoria, la versión robusta es un *transactional outbox*: guardar el mensaje en una tabla dentro de la misma transacción y publicarlo desde ahí.
 - **La pasarela es simulada.** El puerto `PasarelaPagos` ya está separado. El adaptador REST real se agrega sin tocar `CobroServiceImpl`.
-- **Cancelar una reserva confirmada no devuelve el dinero.** El reintegro llega junto con la integración real de la pasarela.
+- **Reintegros sincrónicos.** Al cancelar, el reintegro se pide a la pasarela dentro de la misma transacción (ver la política de cancelación en [DominioReservas.md](DominioReservas.md)). Con un proveedor real conviene pasarlo también a una cola.
 - **Para la entrega obligatoria:** el tópico `reserva.confirmada` con sus suscriptores, el servicio SOAP de facturación con su WSDL, el servicio REST hacia el partner de pagos, y el flujo crítico "reservar → cobrar → confirmar" con transacciones declarativas explicado ante una falla a mitad de camino. Este proceso ya cubre buena parte de ese último punto.

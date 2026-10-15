@@ -9,8 +9,10 @@ import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.enums.Rol;
+import com.daii.backdaii.domain.evento.ReservaCancelada;
 import com.daii.backdaii.domain.evento.ReservaCreada;
 import com.daii.backdaii.domain.repository.BloqueoRepository;
+import com.daii.backdaii.domain.repository.CobroRepository;
 import com.daii.backdaii.domain.repository.EspacioRepository;
 import com.daii.backdaii.domain.repository.PisoRepository;
 import com.daii.backdaii.domain.repository.ReservaRepository;
@@ -60,6 +62,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
     private final TomaDeFranja tomaDeFranja;
     private final ReglasReserva reglas;
     private final EmailService emailService;
+    private final CobroRepository cobroRepository;
+    private final Cancelaciones cancelaciones;
     private final ApplicationEventPublisher eventos;
     private final Clock reloj;
 
@@ -193,10 +197,19 @@ public class AdminReservaServiceImpl implements AdminReservaService {
         reserva.setEspacio(espacio);
         reserva.setInicio(franja.inicio());
         reserva.setFin(franja.fin());
-        reserva.setEstado(estado);
         String detalle = String.join("; ", cambios);
         reserva.registrarCambio(admin, motivo.isEmpty() ? "Sin motivo" : motivo, detalle);
+        boolean cancela = estado == EstadoReserva.CANCELADA && reserva.getEstado().ocupa();
+        if (cancela) {
+            // Full refund and its own mail, the same path as any other cancellation.
+            cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.ADMINISTRADOR, motivo);
+        } else {
+            reserva.setEstado(estado);
+        }
         tomaDeFranja.guardar(() -> reservaRepository.saveAndFlush(reserva));
+        if (cancela) {
+            return detalle(reserva.getId(), ahora);
+        }
 
         String aviso = "Un administrador modificó tu reserva " + reserva.getCodigo() + ".\n" + detalle.replace("; ", "\n")
                 + "\nMotivo: " + motivo;
@@ -214,15 +227,11 @@ public class AdminReservaServiceImpl implements AdminReservaService {
         reservaRepository.findBloqueadaById(id); // waits for a charge in flight, see CobroServiceImpl
         Reserva reserva = reservaRepository.findDetalleById(id)
                 .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
-        Usuario cliente = reserva.getUsuario();
-        String descripcion = Vistas.describir(reserva.getEspacio(), new Franja(reserva.getInicio(), reserva.getFin()));
-        String codigo = reserva.getCodigo();
-        reservaRepository.delete(reserva);
-
-        if (reserva.getFin().isAfter(LocalDateTime.now(reloj))) {
-            emailService.sendAvisoReserva(cliente.getEmail(), cliente.getNombre(), "Se eliminó tu reserva " + codigo,
-                    "Un administrador eliminó tu reserva " + codigo + " (" + descripcion + "). La franja quedó libre.");
+        // A booking still to come is cancelled first: full refund and the customer's mail.
+        if (reserva.getEstado().ocupa() && reserva.getFin().isAfter(LocalDateTime.now(reloj))) {
+            cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.ELIMINADA, null);
         }
+        reservaRepository.delete(reserva);
     }
 
     @Override
@@ -238,7 +247,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
 
     private ReservaDTO detalle(Long id, LocalDateTime ahora) {
         Reserva reserva = reservaRepository.findDetalleById(id).orElseThrow();
-        return Vistas.reserva(reserva, ahora, reglas.cancelable(reserva, ahora), true);
+        return Vistas.reserva(reserva, ahora, reglas.cancelable(reserva, ahora), true,
+                cobroRepository.findByReservaId(id).orElse(null), null);
     }
 
     private Usuario usuario(String email) {

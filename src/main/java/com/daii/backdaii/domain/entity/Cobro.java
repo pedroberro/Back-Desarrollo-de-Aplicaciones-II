@@ -47,4 +47,19 @@ public class Cobro {
 
     @Column(name = "procesado_el", nullable = false)
     private LocalDateTime procesadoEl;
+
+    /** Set when the booking was cancelled and part or all of the charge went back. */
+    @Column(name = "monto_reintegrado", precision = 12, scale = 2)
+    private BigDecimal montoReintegrado;
+
+    @Column(name = "reintegro_referencia", length = 80)
+    private String reintegroReferencia;
+
+    @Column(name = "reintegrado_el")
+    private LocalDateTime reintegradoEl;
+
+    /** Charged and not refunded yet: the only state a cancellation can refund. */
+    public boolean reintegrable() {
+        return estado == EstadoCobro.APROBADO && montoReintegrado == null;
+    }
 }

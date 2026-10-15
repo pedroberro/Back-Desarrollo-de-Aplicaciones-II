@@ -2,17 +2,21 @@ package com.daii.backdaii.service.impl;
 
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.disponibilidad.ReglasReserva;
+import com.daii.backdaii.domain.entity.Cobro;
 import com.daii.backdaii.domain.entity.Espacio;
 import com.daii.backdaii.domain.entity.MedioPago;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.evento.ReservaCancelada;
 import com.daii.backdaii.domain.evento.ReservaCreada;
+import com.daii.backdaii.domain.repository.CobroRepository;
 import com.daii.backdaii.domain.repository.MedioPagoRepository;
 import com.daii.backdaii.domain.repository.ReservaRepository;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.CrearReservaRequest;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.MisReservas;
+import com.daii.backdaii.dto.reserva.ReservaDTOs.ReintegroSiCancela;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaDTO;
 import com.daii.backdaii.exception.BadRequestException;
 import com.daii.backdaii.exception.NotFoundException;
@@ -26,6 +30,9 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +41,8 @@ public class ReservaServiceImpl implements ReservaService {
     private final ReservaRepository reservaRepository;
     private final UsuarioRepository usuarioRepository;
     private final MedioPagoRepository medioPagoRepository;
+    private final CobroRepository cobroRepository;
+    private final Cancelaciones cancelaciones;
     private final TomaDeFranja tomaDeFranja;
     private final ReglasReserva reglas;
     private final ApplicationEventPublisher eventos;
@@ -71,15 +80,18 @@ public class ReservaServiceImpl implements ReservaService {
         Usuario usuario = usuario(email);
         LocalDateTime ahora = LocalDateTime.now(reloj);
         List<Reserva> todas = reservaRepository.findByUsuarioIdOrderByInicioAsc(usuario.getId());
+        Map<Long, Cobro> cobros = todas.isEmpty() ? Map.of()
+                : cobroRepository.findByReservaIdIn(todas.stream().map(Reserva::getId).toList()).stream()
+                        .collect(Collectors.toMap(c -> c.getReserva().getId(), Function.identity()));
 
         List<ReservaDTO> proximas = todas.stream()
                 .filter(r -> r.estadoEn(ahora).ocupa())
-                .map(r -> dto(r, ahora, false))
+                .map(r -> dto(r, ahora, false, cobros.get(r.getId())))
                 .toList();
         List<ReservaDTO> historial = todas.stream()
                 .filter(r -> !r.estadoEn(ahora).ocupa())
                 .sorted(Comparator.comparing(Reserva::getInicio).reversed())
-                .map(r -> dto(r, ahora, false))
+                .map(r -> dto(r, ahora, false, cobros.get(r.getId())))
                 .toList();
         return new MisReservas(proximas, historial);
     }
@@ -106,12 +118,23 @@ public class ReservaServiceImpl implements ReservaService {
         if (!reglas.cancelable(reserva, ahora)) {
             throw new BadRequestException("Solo se pueden cancelar las reservas pendientes o confirmadas que todavía no empezaron");
         }
-        reserva.setEstado(EstadoReserva.CANCELADA);
-        return dto(reservaRepository.save(reserva), ahora, true);
+        // Policy, refund and the customer's mail: the same path an administrator's cancellation takes.
+        cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.CLIENTE, null);
+        return dto(reservaRepository.saveAndFlush(reserva), ahora, true);
     }
 
     private ReservaDTO dto(Reserva reserva, LocalDateTime ahora, boolean conCambios) {
-        return Vistas.reserva(reserva, ahora, reglas.cancelable(reserva, ahora), conCambios);
+        return dto(reserva, ahora, conCambios, cobroRepository.findByReservaId(reserva.getId()).orElse(null));
+    }
+
+    private ReservaDTO dto(Reserva reserva, LocalDateTime ahora, boolean conCambios, Cobro cobro) {
+        boolean cancelable = reglas.cancelable(reserva, ahora);
+        ReintegroSiCancela reintegro = null;
+        if (cancelable) {
+            Cancelaciones.Resultado simulado = cancelaciones.simular(reserva, cobro, ahora);
+            reintegro = new ReintegroSiCancela(simulado.porcentaje(), simulado.reintegrado());
+        }
+        return Vistas.reserva(reserva, ahora, cancelable, conCambios, cobro, reintegro);
     }
 
     /** Optional: without a card the charge uses the customer's main one. */

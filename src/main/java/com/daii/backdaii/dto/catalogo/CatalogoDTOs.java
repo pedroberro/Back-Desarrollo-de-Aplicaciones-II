@@ -120,6 +120,8 @@ public final class CatalogoDTOs {
             boolean ventana,
             /** Side of the window: Norte, Sur, Este, Oeste; Interior when it has none. */
             String orientacion,
+            /** Pesos per hour; a booking is charged per minute. */
+            BigDecimal precioHora,
             /** Short names ("Monitor", "Wi-Fi") for the tooltip and the list. */
             List<String> equipamiento,
             Posicion posicion,
@@ -156,6 +158,8 @@ public final class CatalogoDTOs {
             ResumenPlano resumen,
             /** Same slot on the other floors of the building. */
             List<PisoLibres> otrosPisos,
+            /** Booking rules and cancellation policy, for the confirmation step. */
+            ReglasReserva.Condiciones condiciones,
             /** Next slot of the same length, same day, with something free; null if none. */
             FranjaDTO sugerencia) {
     }
@@ -184,7 +188,9 @@ public final class CatalogoDTOs {
             EdificioRef edificio,
             Ref empresa,
             List<ServicioCercano> serviciosCercanos,
-            ReglasReserva.Condiciones condiciones) {
+            ReglasReserva.Condiciones condiciones,
+            /** Pesos per hour; a booking is charged per minute. */
+            BigDecimal precioHora) {
     }
 
     /** One occupation in a space calendar. Customers only see details of their own bookings. */

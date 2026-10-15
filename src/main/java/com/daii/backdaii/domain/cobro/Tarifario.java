@@ -25,6 +25,10 @@ public class Tarifario {
         }
     }
 
+    public BigDecimal porHora(TipoEspacio tipo) {
+        return porHora.get(tipo);
+    }
+
     public BigDecimal monto(TipoEspacio tipo, Franja franja) {
         BigDecimal minutos = BigDecimal.valueOf(franja.duracion().toMinutes());
         return porHora.get(tipo).multiply(minutos).divide(MINUTOS_POR_HORA, 2, RoundingMode.HALF_UP);

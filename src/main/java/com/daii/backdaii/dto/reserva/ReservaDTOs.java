@@ -1,5 +1,6 @@
 package com.daii.backdaii.dto.reserva;
 
+import com.daii.backdaii.domain.enums.EstadoCobro;
 import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.enums.MotivoBloqueo;
 import com.daii.backdaii.domain.enums.TipoEspacio;
@@ -10,6 +11,7 @@ import com.daii.backdaii.dto.catalogo.CatalogoDTOs.Ref;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -71,7 +73,18 @@ public final class ReservaDTOs {
             boolean cancelable,
             LocalDateTime creadaEl,
             /** Only filled in the detail. */
-            List<Cambio> cambios) {
+            List<Cambio> cambios,
+            /** The charge of the booking; null while it was not charged (or charging is off). */
+            Pago pago,
+            /** What the customer gets back cancelling now; only for the customer's own cancelable bookings. */
+            ReintegroSiCancela reintegroSiCancela) {
+    }
+
+    public record Pago(BigDecimal monto, EstadoCobro estado, String tarjeta, BigDecimal reintegrado) {
+    }
+
+    /** {@code monto} is null when nothing was charged yet: cancelling costs nothing then. */
+    public record ReintegroSiCancela(int porcentaje, BigDecimal monto) {
     }
 
     public record MisReservas(List<ReservaDTO> proximas, List<ReservaDTO> historial) {
@@ -133,7 +146,17 @@ public final class ReservaDTOs {
             @NotNull(message = "Elegí desde cuándo") LocalDateTime inicio,
             @NotNull(message = "Elegí hasta cuándo") LocalDateTime fin,
             @NotNull(message = "Elegí el motivo") MotivoBloqueo motivo,
-            @Size(max = 200, message = "El detalle no puede superar los 200 caracteres") String detalle) {
+            @Size(max = 200, message = "El detalle no puede superar los 200 caracteres") String detalle,
+            /** Cancel the bookings in the way (full refund and a mail each); without it they stop the block. */
+            Boolean cancelarReservas) {
+    }
+
+    /** A booking a block would sweep away. */
+    public record ReservaAfectada(Long id, String codigo, String espacio, String cliente, LocalDateTime inicio, LocalDateTime fin) {
+    }
+
+    /** Body of the 409 of a block that falls on bookings: the client confirms and retries. */
+    public record ReservasAfectadas(String message, String code, List<ReservaAfectada> reservas) {
     }
 
     public record BloqueoDTO(
