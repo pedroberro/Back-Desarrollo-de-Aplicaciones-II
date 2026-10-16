@@ -41,3 +41,6 @@ application-local.yml
 
 # Python bytecode of the catalog generators
 __pycache__/
+
+# Local TLS material of the broker (docker/rabbitmq/generar-certificados.sh)
+docker/rabbitmq/certs/

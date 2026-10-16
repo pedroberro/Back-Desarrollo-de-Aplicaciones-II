@@ -8,6 +8,8 @@ import com.daii.backdaii.domain.entity.Piso;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.enums.EventoAuditoria;
+import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.domain.enums.Rol;
 import com.daii.backdaii.domain.evento.ReservaCancelada;
 import com.daii.backdaii.domain.evento.ReservaCreada;
@@ -27,6 +29,7 @@ import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservaDTO;
 import com.daii.backdaii.exception.BadRequestException;
 import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.service.AdminReservaService;
+import com.daii.backdaii.service.AuditoriaService;
 import com.daii.backdaii.service.EmailService;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -64,6 +67,7 @@ public class AdminReservaServiceImpl implements AdminReservaService {
     private final EmailService emailService;
     private final CobroRepository cobroRepository;
     private final Cancelaciones cancelaciones;
+    private final AuditoriaService auditoria;
     private final ApplicationEventPublisher eventos;
     private final Clock reloj;
 
@@ -207,6 +211,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
             reserva.setEstado(estado);
         }
         tomaDeFranja.guardar(() -> reservaRepository.saveAndFlush(reserva));
+        auditoria.registrar(EventoAuditoria.RESERVA_EDITADA_POR_ADMIN, ResultadoAuditoria.EXITO, adminEmail,
+                reserva.getCodigo() + " de " + cliente.getEmail() + ": " + detalle);
         if (cancela) {
             return detalle(reserva.getId(), ahora);
         }
@@ -232,6 +238,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
             cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.ELIMINADA, null);
         }
         reservaRepository.delete(reserva);
+        auditoria.registrar(EventoAuditoria.RESERVA_ELIMINADA_POR_ADMIN, ResultadoAuditoria.EXITO, adminEmail,
+                reserva.getCodigo() + " de " + reserva.getUsuario().getEmail());
     }
 
     @Override

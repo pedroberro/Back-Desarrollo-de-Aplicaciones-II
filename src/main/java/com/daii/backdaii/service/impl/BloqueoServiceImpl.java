@@ -7,6 +7,8 @@ import com.daii.backdaii.domain.entity.Espacio;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.enums.EventoAuditoria;
+import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.domain.evento.ReservaCancelada;
 import com.daii.backdaii.domain.repository.BloqueoRepository;
 import com.daii.backdaii.domain.repository.EspacioRepository;
@@ -23,6 +25,7 @@ import com.daii.backdaii.exception.ConflictException;
 import com.daii.backdaii.exception.FranjaTomadaException;
 import com.daii.backdaii.exception.NotFoundException;
 import com.daii.backdaii.exception.ReservasAfectadasException;
+import com.daii.backdaii.service.AuditoriaService;
 import com.daii.backdaii.service.BloqueoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,6 +52,7 @@ public class BloqueoServiceImpl implements BloqueoService {
     private final UsuarioRepository usuarioRepository;
     private final ReservaRepository reservaRepository;
     private final Cancelaciones cancelaciones;
+    private final AuditoriaService auditoria;
     private final TomaDeFranja tomaDeFranja;
     private final Clock reloj;
 
@@ -119,6 +123,8 @@ public class BloqueoServiceImpl implements BloqueoService {
                         .build())
                 .toList()));
 
+        auditoria.registrar(EventoAuditoria.BLOQUEO_CREADO, ResultadoAuditoria.EXITO, adminEmail,
+                creados.size() + " espacio(s), " + motivoBloqueo + ", " + afectadas.size() + " reserva(s) cancelada(s)");
         return new BloqueosCreados(grupo, creados.size(), creados.stream().map(Vistas::bloqueo).toList());
     }
 
@@ -133,7 +139,15 @@ public class BloqueoServiceImpl implements BloqueoService {
     public void eliminar(Long id, boolean todoElGrupo) {
         Bloqueo bloqueo = bloqueoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Bloqueo no encontrado"));
-        bloqueoRepository.deleteAll(todoElGrupo ? bloqueoRepository.findByGrupo(bloqueo.getGrupo()) : List.of(bloqueo));
+        List<Bloqueo> borrados = todoElGrupo ? bloqueoRepository.findByGrupo(bloqueo.getGrupo()) : List.of(bloqueo);
+        bloqueoRepository.deleteAll(borrados);
+        auditoria.registrar(EventoAuditoria.BLOQUEO_ELIMINADO, ResultadoAuditoria.EXITO, usuarioActual(),
+                borrados.size() + " bloqueo(s) de " + bloqueo.getMotivo().getEtiqueta());
+    }
+
+    private static String usuarioActual() {
+        var autenticacion = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return autenticacion == null ? null : autenticacion.getName();
     }
 
     private static String etiqueta(EstadoReserva estado) {

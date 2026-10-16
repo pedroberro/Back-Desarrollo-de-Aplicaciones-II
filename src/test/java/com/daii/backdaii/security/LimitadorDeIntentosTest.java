@@ -44,7 +44,7 @@ class LimitadorDeIntentosTest {
     @BeforeEach
     void crear() {
         reloj = new RelojManual();
-        limitador = new LimitadorDeIntentos(reloj);
+        limitador = new LimitadorDeIntentos(new AlmacenIntentosEnMemoria(reloj));
         limitador.iniciar();
     }
 
@@ -83,14 +83,16 @@ class LimitadorDeIntentosTest {
     }
 
     @Test
-    void detenerDescartaElEstado() {
-        int maximo = LimiteIntentos.RECUPERAR_PASSWORD.getMaximo();
-        for (int i = 0; i <= maximo; i++) {
-            limitador.permitir(LimiteIntentos.RECUPERAR_PASSWORD, "10.0.0.1");
+    void elBloqueoSobreviveAUnReinicioDelLimitador() {
+        // SEC-04: the counters live in the store, not in the limiter. A new limiter over the same
+        // store (an app restart, or another instance) still sees the account locked.
+        AlmacenIntentosEnMemoria almacen = new AlmacenIntentosEnMemoria(reloj);
+        LimitadorDeIntentos antes = new LimitadorDeIntentos(almacen);
+        for (int i = 0; i < LimiteIntentos.LOGIN_FALLIDO.getMaximo(); i++) {
+            antes.permitir(LimiteIntentos.LOGIN_FALLIDO, "ana@example.com");
         }
-        limitador.detener();
-        limitador.iniciar();
-        assertThat(limitador.permitir(LimiteIntentos.RECUPERAR_PASSWORD, "10.0.0.1")).isTrue();
+        LimitadorDeIntentos despues = new LimitadorDeIntentos(almacen);
+        assertThat(despues.agotado(LimiteIntentos.LOGIN_FALLIDO, "ana@example.com")).isTrue();
     }
 
     @Test

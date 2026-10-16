@@ -8,6 +8,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,6 +57,22 @@ public class MensajeriaConfig {
     @Bean
     Binding dlqAlExchange() {
         return BindingBuilder.bind(colaCobrosDlq()).to(exchangeDlx()).with(Colas.COBROS_DLQ);
+    }
+
+    /**
+     * Fail-fast checks of the broker connection (SEC-07): TLS always, and never the default
+     * guest account. Also the signing secret of the messages (SEC-08).
+     */
+    @Bean
+    FirmaMensajes firmaMensajes(@Value("${spring.rabbitmq.addresses:}") String direccion,
+                                @Value("${app.mensajeria.firma-secreto:}") String secreto) {
+        if (direccion == null || !direccion.startsWith("amqps://")) {
+            throw new IllegalStateException("RABBITMQ_URL tiene que usar amqps:// (TLS): la mensajería no arranca sin cifrado.");
+        }
+        if (direccion.startsWith("amqps://guest:") || !direccion.substring("amqps://".length()).contains("@")) {
+            throw new IllegalStateException("RABBITMQ_URL tiene que usar una cuenta propia de la aplicación, no guest ni conexión anónima.");
+        }
+        return new FirmaMensajes(secreto);
     }
 
     /** JSON on the wire (readable in the RabbitMQ console); Boot wires it into the template and the listeners. */

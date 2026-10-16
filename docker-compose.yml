@@ -1,15 +1,45 @@
-# Local broker for the asynchronous charge of bookings (docs/Integracion.md).
-#   docker compose up -d rabbitmq
-# AMQP on 5672, management console on http://localhost:15672 (guest / guest).
+# Local broker for the asynchronous charge of bookings, hardened as in production (SEC-07):
+# TLS only (amqps on 5671, plain AMQP disabled), no guest account, and the app with its own user
+# limited to its own vhost and to the planta-libre.* exchanges and queues.
+#
+#   ./docker/rabbitmq/generar-certificados.sh      once: local CA and server certificate
+#   docker compose up -d                           broker + one-shot provisioning of the app user
+#
+# Needs in .env (see .env.example): RABBITMQ_ADMIN_USER, RABBITMQ_ADMIN_PASSWORD, RABBITMQ_APP_PASSWORD.
+# The management console listens on localhost only: http://localhost:15672 with the admin account.
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: planta-libre-rabbitmq
+    environment:
+      # A named administrator instead of guest: with these set, guest is never created.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_ADMIN_USER:?Falta RABBITMQ_ADMIN_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_ADMIN_PASSWORD:?Falta RABBITMQ_ADMIN_PASSWORD en .env}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5671:5671"
+      - "127.0.0.1:15672:15672"
     volumes:
+      - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/90-planta-libre.conf:ro
+      - ./docker/rabbitmq/certs:/etc/rabbitmq/certs:ro
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      retries: 20
+
+  # Creates the vhost and the app account with minimal permissions, then exits.
+  rabbitmq-usuarios:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_ADMIN_USER: ${RABBITMQ_ADMIN_USER}
+      RABBITMQ_ADMIN_PASSWORD: ${RABBITMQ_ADMIN_PASSWORD}
+      RABBITMQ_APP_PASSWORD: ${RABBITMQ_APP_PASSWORD:?Falta RABBITMQ_APP_PASSWORD en .env}
+    volumes:
+      - ./docker/rabbitmq/provisionar.sh:/provisionar.sh:ro
+    entrypoint: ["sh", "/provisionar.sh"]
 
 volumes:
   rabbitmq-data:

@@ -1,5 +1,10 @@
 server:
   port: ${PORT:8080}
+  # Never tell clients which server or version answers.
+  server-header:
+  error:
+    include-message: never
+    include-stacktrace: never
   # Render and Vercel sit in front of the app: trust X-Forwarded-For so the client IP
   # (used by the rate limiter) is the real one and not the proxy's.
   forward-headers-strategy: framework
@@ -15,7 +20,8 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/reservas_espacios}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    # No default: credentials never live in the repository (see .env.example).
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -34,7 +40,9 @@ spring:
   # Broker of the charge queue. Only used with app.mensajeria.habilitada=true.
   # Locally: docker compose up rabbitmq. In the cloud: the AMQP URL of the provider (amqps://...).
   rabbitmq:
-    addresses: ${RABBITMQ_URL:amqp://guest:guest@localhost:5672}
+    # Required with messaging on: amqps:// with the app's own account and vhost (SEC-07), e.g.
+    # amqps://planta-libre-api:<password>@rabbitmq:5671/planta-libre. No default: no guest, no plain AMQP.
+    addresses: ${RABBITMQ_URL:}
     # Publishing runs right after the booking commits, before the HTTP response: an unreachable
     # broker must fail fast instead of holding the request for the client's default 60 s.
     connection-timeout: 5s
@@ -69,6 +77,10 @@ app:
   # so the app still starts without a broker; then bookings stay PENDIENTE until an admin confirms.
   mensajeria:
     habilitada: ${MENSAJERIA_HABILITADA:false}
+    # HMAC secret of the charge messages (SEC-08), at least 32 random characters.
+    firma-secreto: ${MENSAJERIA_FIRMA_SECRETO:}
+    dlq:
+      revisar-cada-ms: ${MENSAJERIA_DLQ_REVISAR_CADA_MS:30000}
     # Safety net of the charge (BarridoCobros): every cada-ms, a charge with no answer after
     # espera-segundos is requested again, up to max-reencolados times; then the booking is cancelled.
     barrido:
@@ -89,8 +101,11 @@ app:
       SALA_CONFERENCIAS: 22000
 
   jwt:
-    secret: ${JWT_SECRET:myDefaultSecretKeyForDevelopmentOnly2024!@#$%^&*()}
-    expiration-ms: 86400000
+    # Required, at least 32 random characters: the app refuses to start without it (Secretos).
+    secret: ${JWT_SECRET:}
+    # Access tokens live 15 minutes (SEC-02); the session goes on with the rotating refresh token.
+    expiration-ms: 900000
+    refresh-dias: 7
     header: Authorization
     prefix: "Bearer "
 
@@ -105,6 +120,21 @@ app:
       client-secret: ${GMAIL_CLIENT_SECRET:}
       refresh-token: ${GMAIL_REFRESH_TOKEN:}
 
+  # Field encryption at rest (SEC-09). The current key is required; see CifradoCampos to rotate.
+  cifrado:
+    clave-actual: ${CIFRADO_CLAVE_ACTUAL:}
+    version-actual: ${CIFRADO_VERSION_ACTUAL:v1}
+    claves-anteriores: ${CIFRADO_CLAVES_ANTERIORES:}
+
+  alertas:
+    # Where operational alerts go (messages in the DLQ). Empty: only the log and the audit trail.
+    email: ${ALERTAS_EMAIL:}
+
+  seguridad:
+    filtraciones:
+      # Ask Have I Been Pwned (k-anonymity) on sign-up and password changes, besides the local list.
+      consultar-externo: ${VERIFICAR_FILTRACIONES_HIBP:true}
+
   # Bookings are stored in the buildings' local time; "now" is taken in this zone even if the
   # server runs in UTC.
   zona-horaria: ${ZONA_HORARIA:America/Argentina/Buenos_Aires}
@@ -112,6 +142,8 @@ app:
   demo:
     # Fills the two weeks around today with demo bookings on startup (see DatosDemoInicializador).
     habilitado: ${DEMO_HABILITADO:true}
+    # Password of the demo accounts; outside the repository like every other credential.
+    password: ${DEMO_PASSWORD:}
 
   frontend:
     # Used to build the links sent by mail.

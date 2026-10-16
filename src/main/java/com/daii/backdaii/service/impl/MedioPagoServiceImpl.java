@@ -1,5 +1,8 @@
 package com.daii.backdaii.service.impl;
 
+import com.daii.backdaii.domain.enums.EventoAuditoria;
+import com.daii.backdaii.domain.enums.ResultadoAuditoria;
+import com.daii.backdaii.service.AuditoriaService;
 import com.daii.backdaii.domain.entity.MedioPago;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.repository.MedioPagoRepository;
@@ -25,6 +28,7 @@ public class MedioPagoServiceImpl implements MedioPagoService {
 
         private final MedioPagoRepository medioPagoRepository;
         private final UsuarioRepository usuarioRepository;
+        private final AuditoriaService auditoria;
 
         @Override
         @Transactional
@@ -54,7 +58,10 @@ public class MedioPagoServiceImpl implements MedioPagoService {
                         .principal(cantidad == 0)
                         .build();
 
-                return toResumen(medioPagoRepository.save(medioPago));
+                MedioPagoResumen resumen = toResumen(medioPagoRepository.save(medioPago));
+                auditoria.registrar(EventoAuditoria.ALTA_MEDIO_PAGO, ResultadoAuditoria.EXITO, usuario.getEmail(),
+                        "Tarjeta terminada en " + ultimos4);
+                return resumen;
         }
 
         @Override
@@ -130,6 +137,8 @@ public class MedioPagoServiceImpl implements MedioPagoService {
                                         medioPagoRepository.save(siguiente);
                                 });
                 }
+                auditoria.registrar(EventoAuditoria.BAJA_MEDIO_PAGO, ResultadoAuditoria.EXITO, usuario.getEmail(),
+                        "Tarjeta terminada en " + ultimos4(medioPago.getNumeroTarjetaMasked()));
         }
 
         // Format is already validated as MM/AA; a card stays valid through its expiry month.

@@ -1,5 +1,9 @@
 package com.daii.backdaii.exception;
 
+import com.daii.backdaii.domain.enums.EventoAuditoria;
+import com.daii.backdaii.domain.enums.ResultadoAuditoria;
+import com.daii.backdaii.service.AuditoriaService;
+import lombok.RequiredArgsConstructor;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.FranjaTomada;
 import com.daii.backdaii.dto.reserva.ReservaDTOs.ReservasAfectadas;
 import org.slf4j.Logger;
@@ -24,9 +28,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final AuditoriaService auditoria;
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApi(ApiException ex) {
@@ -78,7 +85,9 @@ public class GlobalExceptionHandler {
 
     // Thrown by @PreAuthorize inside the controller layer, so it arrives here instead of the security filter.
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, jakarta.servlet.http.HttpServletRequest request) {
+        auditoria.registrar(EventoAuditoria.ACCESO_DENEGADO, ResultadoAuditoria.DENEGADO, request.getRemoteUser(),
+                request.getMethod() + " " + request.getRequestURI());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse("No tenés permiso para esta acción"));
     }
 

@@ -11,6 +11,7 @@ import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.enums.TipoEspacio;
 import com.daii.backdaii.domain.evento.CobroResuelto;
 import com.daii.backdaii.domain.repository.CobroRepository;
+import com.daii.backdaii.domain.repository.MensajeProcesadoRepository;
 import com.daii.backdaii.domain.repository.MedioPagoRepository;
 import com.daii.backdaii.domain.repository.ReservaRepository;
 import com.daii.backdaii.service.PasarelaPagos;
@@ -53,6 +54,8 @@ class CobroServiceImplTest {
     @Mock
     private CobroRepository cobroRepository;
     @Mock
+    private MensajeProcesadoRepository mensajesProcesados;
+    @Mock
     private PasarelaPagos pasarela;
     @Mock
     private ApplicationEventPublisher eventos;
@@ -69,7 +72,7 @@ class CobroServiceImplTest {
                 TipoEspacio.SALA_PRESENTACIONES, new BigDecimal("14000"),
                 TipoEspacio.SALA_CONFERENCIAS, new BigDecimal("22000")));
         Clock reloj = Clock.fixed(Instant.parse("2026-10-15T12:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"));
-        servicio = new CobroServiceImpl(reservaRepository, medioPagoRepository, cobroRepository, pasarela, tarifario, eventos, reloj);
+        servicio = new CobroServiceImpl(reservaRepository, medioPagoRepository, cobroRepository, mensajesProcesados, pasarela, tarifario, eventos, reloj);
 
         ana = Usuario.builder().id(3L).nombre("Ana").email("ana@example.com").build();
         visa = MedioPago.builder().id(5L).usuario(ana).numeroTarjetaMasked("**** **** **** 4242")
@@ -101,7 +104,7 @@ class CobroServiceImplTest {
         Reserva reserva = reserva(EstadoReserva.PENDIENTE, visa);
         when(pasarela.cobrar(any())).thenReturn(ResultadoPago.aprobado("SIM-1"));
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         ArgumentCaptor<SolicitudPago> solicitud = ArgumentCaptor.forClass(SolicitudPago.class);
         verify(pasarela).cobrar(solicitud.capture());
@@ -121,7 +124,7 @@ class CobroServiceImplTest {
         Reserva reserva = reserva(EstadoReserva.PENDIENTE, visa);
         when(pasarela.cobrar(any())).thenReturn(ResultadoPago.rechazado("Fondos insuficientes"));
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         assertThat(reserva.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
         Cobro cobro = cobroGuardado();
@@ -138,7 +141,7 @@ class CobroServiceImplTest {
         when(medioPagoRepository.findByUsuarioIdAndEliminadoFalseOrderByPrincipalDescCreadoElAsc(3L)).thenReturn(List.of(visa));
         when(pasarela.cobrar(any())).thenReturn(ResultadoPago.aprobado("SIM-2"));
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         assertThat(cobroGuardado().getMedioPago()).isSameAs(visa);
     }
@@ -148,7 +151,7 @@ class CobroServiceImplTest {
         Reserva reserva = reserva(EstadoReserva.PENDIENTE, null);
         when(medioPagoRepository.findByUsuarioIdAndEliminadoFalseOrderByPrincipalDescCreadoElAsc(3L)).thenReturn(List.of());
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         verifyNoInteractions(pasarela);
         assertThat(reserva.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
@@ -159,7 +162,7 @@ class CobroServiceImplTest {
     void unaReservaQueYaNoEstaPendienteNoSeCobra() {
         Reserva reserva = reserva(EstadoReserva.CANCELADA, visa);
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         verifyNoInteractions(pasarela, eventos);
         verify(cobroRepository, never()).save(any());
@@ -171,7 +174,7 @@ class CobroServiceImplTest {
         reserva(EstadoReserva.PENDIENTE, visa);
         when(cobroRepository.existsByReservaId(7L)).thenReturn(true);
 
-        servicio.procesar(7L);
+        servicio.procesar(7L, null);
 
         verifyNoInteractions(pasarela, eventos);
         verify(cobroRepository, never()).save(any());
@@ -182,10 +185,29 @@ class CobroServiceImplTest {
         Reserva reserva = reserva(EstadoReserva.PENDIENTE, visa);
         when(pasarela.cobrar(any())).thenThrow(new IllegalStateException("timeout"));
 
-        assertThatThrownBy(() -> servicio.procesar(7L)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> servicio.procesar(7L, null)).isInstanceOf(IllegalStateException.class);
 
         verify(cobroRepository, never()).save(any());
         verifyNoInteractions(eventos);
         assertThat(reserva.getEstado()).isEqualTo(EstadoReserva.PENDIENTE);
+    }
+
+    @Test
+    void unMensajeYaProcesadoNoSeVuelveACobrar() {
+        when(mensajesProcesados.existsById("m-1")).thenReturn(true);
+
+        servicio.procesar(7L, "m-1");
+
+        verifyNoInteractions(pasarela, reservaRepository, cobroRepository, eventos);
+    }
+
+    @Test
+    void elMensajeQuedaRegistradoComoProcesado() {
+        reserva(EstadoReserva.PENDIENTE, visa);
+        when(pasarela.cobrar(any())).thenReturn(ResultadoPago.aprobado("SIM-9"));
+
+        servicio.procesar(7L, "m-2");
+
+        verify(mensajesProcesados).save(org.mockito.ArgumentMatchers.argThat(m -> m.getMensajeId().equals("m-2")));
     }
 }

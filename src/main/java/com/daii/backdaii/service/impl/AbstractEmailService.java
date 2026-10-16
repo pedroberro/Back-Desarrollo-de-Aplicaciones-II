@@ -75,6 +75,12 @@ public abstract class AbstractEmailService implements EmailService {
                 """.formatted(nombre, titulo + ".", detalle), null);
     }
 
+    @Async
+    @Override
+    public void sendAlerta(String to, String titulo, String detalle) {
+        enviar(to, "[Alerta] " + titulo + " - Planta Libre", detalle, null);
+    }
+
     private void enviar(String to, String asunto, String texto, String link) {
         // .local is a reserved, non-routable domain: the seeded admin and demo accounts use it.
         if (to.endsWith(".local")) {

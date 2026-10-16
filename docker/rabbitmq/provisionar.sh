@@ -1,0 +1,16 @@
+#!/bin/sh
+# One-shot provisioning through the management API: the app's vhost, its account with the least
+# permissions it needs, and no guest account (SEC-07).
+set -eu
+API=http://rabbitmq:15672/api
+AUTH="$RABBITMQ_ADMIN_USER:$RABBITMQ_ADMIN_PASSWORD"
+JSON="content-type: application/json"
+
+curl -fsS -u "$AUTH" -X PUT "$API/vhosts/planta-libre"
+curl -fsS -u "$AUTH" -X PUT -H "$JSON" "$API/users/planta-libre-api" \
+  -d "{\"password\":\"$RABBITMQ_APP_PASSWORD\",\"tags\":\"\"}"
+# Only its own exchanges and queues (planta-libre.*), in its own vhost.
+curl -fsS -u "$AUTH" -X PUT -H "$JSON" "$API/permissions/planta-libre/planta-libre-api" \
+  -d '{"configure":"^planta-libre\\..*","write":"^planta-libre\\..*","read":"^planta-libre\\..*"}'
+curl -sS -u "$AUTH" -X DELETE "$API/users/guest" || true
+echo "RabbitMQ: vhost planta-libre y usuario planta-libre-api listos"

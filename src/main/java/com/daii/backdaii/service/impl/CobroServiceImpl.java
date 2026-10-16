@@ -3,12 +3,14 @@ package com.daii.backdaii.service.impl;
 import com.daii.backdaii.domain.cobro.Tarifario;
 import com.daii.backdaii.domain.disponibilidad.Franja;
 import com.daii.backdaii.domain.entity.Cobro;
+import com.daii.backdaii.domain.entity.MensajeProcesado;
 import com.daii.backdaii.domain.entity.MedioPago;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.enums.EstadoCobro;
 import com.daii.backdaii.domain.enums.EstadoReserva;
 import com.daii.backdaii.domain.evento.CobroResuelto;
 import com.daii.backdaii.domain.repository.CobroRepository;
+import com.daii.backdaii.domain.repository.MensajeProcesadoRepository;
 import com.daii.backdaii.domain.repository.MedioPagoRepository;
 import com.daii.backdaii.domain.repository.ReservaRepository;
 import com.daii.backdaii.service.CobroService;
@@ -41,6 +43,7 @@ public class CobroServiceImpl implements CobroService {
     private final ReservaRepository reservaRepository;
     private final MedioPagoRepository medioPagoRepository;
     private final CobroRepository cobroRepository;
+    private final MensajeProcesadoRepository mensajesProcesados;
     private final PasarelaPagos pasarela;
     private final Tarifario tarifario;
     private final ApplicationEventPublisher eventos;
@@ -48,7 +51,16 @@ public class CobroServiceImpl implements CobroService {
 
     @Override
     @Transactional
-    public void procesar(Long reservaId) {
+    public void procesar(Long reservaId, String mensajeId) {
+        if (mensajeId != null && mensajesProcesados.existsById(mensajeId)) {
+            log.info("Mensaje {} ya procesado: se descarta el duplicado", mensajeId);
+            return;
+        }
+        // Recorded in this same transaction: if the charge rolls back, the message was not handled.
+        if (mensajeId != null) {
+            mensajesProcesados.save(MensajeProcesado.builder()
+                    .mensajeId(mensajeId).reservaId(reservaId).procesadoEl(LocalDateTime.now(reloj)).build());
+        }
         Optional<Reserva> encontrada = reservaRepository.findBloqueadaById(reservaId);
         if (encontrada.isEmpty()) {
             log.warn("Cobro descartado: la reserva {} no existe", reservaId);

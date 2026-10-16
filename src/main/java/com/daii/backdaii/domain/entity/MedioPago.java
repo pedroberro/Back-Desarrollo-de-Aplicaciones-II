@@ -1,5 +1,6 @@
 package com.daii.backdaii.domain.entity;
 
+import com.daii.backdaii.security.CampoCifrado;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,10 +33,13 @@ public class MedioPago {
     @Column(name = "numero_tarjeta_masked", nullable = false, length = 23)
     private String numeroTarjetaMasked;
 
-    @Column(nullable = false, length = 100)
+    /** Card holder and expiry: encrypted at rest (SEC-09). */
+    @Convert(converter = CampoCifrado.class)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String titular;
 
-    @Column(nullable = false, length = 5)
+    @Convert(converter = CampoCifrado.class)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String vencimiento;
 
     @Column(nullable = false)

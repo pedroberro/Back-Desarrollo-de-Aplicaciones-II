@@ -15,6 +15,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Producer: turns the ReservaCreada domain event into a message on the charge queue. It runs
@@ -28,6 +29,7 @@ class PublicadorCobros {
     private static final Logger log = LoggerFactory.getLogger(PublicadorCobros.class);
 
     private final RabbitTemplate rabbit;
+    private final FirmaMensajes firma;
     private final BarridoCobros barrido;
     private final Clock reloj;
 
@@ -50,7 +52,13 @@ class PublicadorCobros {
     private void publicar(Long reservaId, String que) {
         try {
             rabbit.convertAndSend(Colas.EXCHANGE_RESERVAS, Colas.COBRO_SOLICITADO,
-                    new CobroSolicitado(reservaId, Instant.now(reloj)));
+                    new CobroSolicitado(reservaId, Instant.now(reloj)), mensaje -> {
+                        // An id per message (for deduplication) and a signature over id and body.
+                        String id = UUID.randomUUID().toString();
+                        mensaje.getMessageProperties().setMessageId(id);
+                        mensaje.getMessageProperties().setHeader(FirmaMensajes.CABECERA, firma.firmar(id, mensaje.getBody()));
+                        return mensaje;
+                    });
             log.info("{} para la reserva R-{}", que, reservaId);
         } catch (AmqpException e) {
             // The booking is already saved and PENDIENTE: the sweep requests the charge again later.

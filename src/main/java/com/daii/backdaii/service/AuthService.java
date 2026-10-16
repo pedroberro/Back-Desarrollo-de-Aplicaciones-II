@@ -1,11 +1,11 @@
 package com.daii.backdaii.service;
 
-import com.daii.backdaii.dto.auth.AuthResponse;
 import com.daii.backdaii.dto.auth.ChangePasswordRequest;
-import com.daii.backdaii.dto.auth.ForgotPasswordRequest;
 import com.daii.backdaii.dto.auth.LoginRequest;
 import com.daii.backdaii.dto.auth.RegistroRequest;
 import com.daii.backdaii.dto.auth.ResetPasswordRequest;
+import com.daii.backdaii.dto.auth.ResultadoAuth;
+import com.daii.backdaii.dto.auth.SegundoFactorRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 
 public interface AuthService {
@@ -14,17 +14,24 @@ public interface AuthService {
 
     boolean emailDisponible(String email);
 
-    AuthResponse login(LoginRequest request);
+    /** A session, or for administrators the second-factor challenge (SEC-03). */
+    ResultadoAuth login(LoginRequest request);
+
+    /** Second half of an administrator sign-in: the TOTP code. Wrong code: 401. */
+    ResultadoAuth segundoFactor(SegundoFactorRequest request);
 
     /** Confirms the account behind a single-use link and signs the user in. */
-    AuthResponse confirmarEmail(String token);
+    ResultadoAuth confirmarEmail(String token);
 
     void reenviarConfirmacion(String email);
 
-    void logout(String token);
+    /** Spends the refresh token and issues a new pair (SEC-02). */
+    ResultadoAuth refresh(String refresh);
 
-    /** Returns a new session: tokens issued before the change stop working. */
-    AuthResponse changePassword(String email, ChangePasswordRequest request);
+    void logout(String authorizationHeader, String refresh);
+
+    /** Returns a new session: every other session of the account ends. */
+    ResultadoAuth changePassword(String email, ChangePasswordRequest request);
 
     void forgotPassword(String email);
 

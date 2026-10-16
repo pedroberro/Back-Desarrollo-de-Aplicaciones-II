@@ -3,7 +3,10 @@ package com.daii.backdaii.config;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,16 +33,18 @@ import java.util.UUID;
  * restarts only add the days that entered the window. Real users' bookings are never touched:
  * the generator works around them.
  *
- * <p>Demo customers sign in with password {@value #PASSWORD}, e.g. ana.ruiz{@value #DOMINIO}.
- * Disabled with {@code app.demo.habilitado=false}.
+ * <p>Demo customers (e.g. ana.ruiz{@value #DOMINIO}) sign in with the password in DEMO_PASSWORD,
+ * which never lives in the repository. Without it new demo accounts get a random password nobody
+ * knows. Disabled with {@code app.demo.habilitado=false}.
  */
 @Component
+// Before RecifradoCampos, which encrypts the phone numbers this inserts in plaintext.
+@Order(Ordered.LOWEST_PRECEDENCE - 100)
 @ConditionalOnProperty(name = "app.demo.habilitado", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class DatosDemoInicializador implements ApplicationRunner {
 
     public static final String DOMINIO = "@demo.plantalibre.local";
-    public static final String PASSWORD = "Demo2026";
 
     private static final Logger log = LoggerFactory.getLogger(DatosDemoInicializador.class);
     private static final int DIAS_ATRAS = 14;
@@ -65,6 +70,9 @@ public class DatosDemoInicializador implements ApplicationRunner {
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate transaccion;
     private final Clock reloj;
+
+    @Value("${app.demo.password:}")
+    private String password;
 
     private record EspacioDemo(long id, boolean sala, boolean torreCallao, LocalTime apertura, LocalTime cierre) {
     }
@@ -115,8 +123,8 @@ public class DatosDemoInicializador implements ApplicationRunner {
             dias++;
         }
         if (dias > 0) {
-            log.info("[demo] Cargadas {} reservas de demostración en {} días. Clientes demo: ana.ruiz{} / {}",
-                    reservas, dias, DOMINIO, PASSWORD);
+            log.info("[demo] Cargadas {} reservas de demostración en {} días. Clientes demo: ana.ruiz{}",
+                    reservas, dias, DOMINIO);
         }
     }
 
@@ -128,7 +136,7 @@ public class DatosDemoInicializador implements ApplicationRunner {
             Long id = jdbc.query("SELECT id FROM usuarios WHERE email = ?", rs -> rs.next() ? rs.getLong(1) : null, email);
             if (id == null) {
                 if (hash == null) {
-                    hash = passwordEncoder.encode(PASSWORD);
+                    hash = passwordEncoder.encode(passwordDemo());
                 }
                 id = jdbc.queryForObject("""
                         INSERT INTO usuarios (nombre, email, telefono, password, rol, estado)
@@ -240,5 +248,14 @@ public class DatosDemoInicializador implements ApplicationRunner {
                 .replaceAll("\\p{M}", "")
                 .replace(' ', '.');
         return base + DOMINIO;
+    }
+
+    /** DEMO_PASSWORD, or a random one when it is not set: demo accounts are never left with a known password. */
+    private String passwordDemo() {
+        if (password == null || password.isBlank()) {
+            log.warn("[demo] DEMO_PASSWORD no está configurada: las cuentas demo nuevas quedan con una contraseña aleatoria");
+            return java.util.UUID.randomUUID() + "Aa1";
+        }
+        return password;
     }
 }

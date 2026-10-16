@@ -1,5 +1,8 @@
 package com.daii.backdaii.service.impl;
 
+import com.daii.backdaii.domain.enums.EventoAuditoria;
+import com.daii.backdaii.domain.enums.ResultadoAuditoria;
+import com.daii.backdaii.service.AuditoriaService;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
 import com.daii.backdaii.dto.usuario.UpdateMeRequest;
@@ -20,6 +23,7 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
+    private final AuditoriaService auditoria;
 
     @Override
     @Transactional(readOnly = true)
@@ -37,6 +41,7 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         usuario.setTelefono(request.getTelefono());
         usuarioRepository.save(usuario);
+        auditoria.registrar(EventoAuditoria.CAMBIO_DATOS_PERSONALES, ResultadoAuditoria.EXITO, email, "Teléfono");
 
         return usuarioMapper.toDTO(usuario);
     }
