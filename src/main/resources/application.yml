@@ -69,6 +69,12 @@ app:
   # so the app still starts without a broker; then bookings stay PENDIENTE until an admin confirms.
   mensajeria:
     habilitada: ${MENSAJERIA_HABILITADA:false}
+    # Safety net of the charge (BarridoCobros): every cada-ms, a charge with no answer after
+    # espera-segundos is requested again, up to max-reencolados times; then the booking is cancelled.
+    barrido:
+      cada-ms: ${MENSAJERIA_BARRIDO_CADA_MS:60000}
+      espera-segundos: ${MENSAJERIA_BARRIDO_ESPERA_SEGUNDOS:120}
+      max-reencolados: ${MENSAJERIA_BARRIDO_MAX_REENCOLADOS:3}
 
   pasarela:
     # Response time of the simulated payment provider, so the PENDIENTE state is visible in a demo.

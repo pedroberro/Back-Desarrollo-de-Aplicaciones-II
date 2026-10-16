@@ -37,6 +37,15 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
     @EntityGraph(attributePaths = {"espacio", "espacio.piso", "espacio.piso.edificio", "espacio.piso.edificio.empresa", "usuario", "creadaPor"})
     Optional<Reserva> findDetalleById(Long id);
 
+    /**
+     * Bookings whose charge entered the queue before {@code antesDe} and never resolved: still
+     * PENDIENTE and without a charge. The oldest first, a page at a time.
+     */
+    @Query("select r from Reserva r where r.estado = :pendiente and r.cobroSolicitadoEl is not null "
+            + "and r.cobroSolicitadoEl < :antesDe and not exists (select c from Cobro c where c.reserva = r) "
+            + "order by r.cobroSolicitadoEl")
+    List<Reserva> findCobrosSinResolver(EstadoReserva pendiente, LocalDateTime antesDe, Pageable pagina);
+
     /** The customer's active bookings that overlap a range: a person cannot be in two spaces at once. */
     @EntityGraph(attributePaths = {"espacio"})
     @Query("select r from Reserva r where r.usuario.id = :usuarioId and r.estado in :estados "

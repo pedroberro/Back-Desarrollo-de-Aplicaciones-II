@@ -11,6 +11,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Broker topology, declared by the app on startup (RabbitAdmin creates what is missing).
@@ -19,6 +20,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ConditionalOnProperty(name = "app.mensajeria.habilitada", havingValue = "true")
+// For the charge sweep (ProgramadorBarridoCobros).
+@EnableScheduling
 public class MensajeriaConfig {
 
     @Bean

@@ -53,6 +53,15 @@ public class Reserva {
     @JoinColumn(name = "medio_pago_id")
     private MedioPago medioPago;
 
+    /** When the charge was last requested through the queue; null if it never entered it. */
+    @Column(name = "cobro_solicitado_el")
+    private LocalDateTime cobroSolicitadoEl;
+
+    /** How many times the sweep requested the charge again because nothing came back. */
+    @Column(name = "reencolados_cobro", nullable = false)
+    @Builder.Default
+    private Integer reencoladosCobro = 0;
+
     @CreationTimestamp
     @Column(name = "creada_el", nullable = false, updatable = false)
     private LocalDateTime creadaEl;
