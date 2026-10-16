@@ -191,9 +191,8 @@ public class DatosDemoInicializador implements ApplicationRunner {
                 }
                 boolean esDeAna = espacio.torreCallao() && rnd.nextDouble() < PROBABILIDAD_ANA;
                 Long usuario = esDeAna ? ana : pool.get(rnd.nextInt(pool.size()));
-                String estado = pasado
-                        ? (rnd.nextDouble() < 0.12 ? "CANCELADA" : "CONFIRMADA")
-                        : (rnd.nextDouble() < 0.3 ? "PENDIENTE" : "CONFIRMADA");
+                // Never PENDIENTE: that state means a charge in flight, which demo bookings never have.
+                String estado = rnd.nextDouble() < (pasado ? 0.12 : 0.08) ? "CANCELADA" : "CONFIRMADA";
                 LocalDateTime creada = inicio.minusDays(1 + rnd.nextInt(10)).minusHours(rnd.nextInt(8));
                 reservas.add(new Object[]{espacio.id(), usuario, usuario, ts(inicio), ts(fin), estado, ts(creada), ts(creada)});
                 if (!"CANCELADA".equals(estado)) {
