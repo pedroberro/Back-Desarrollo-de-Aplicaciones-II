@@ -1,0 +1,13 @@
+# Only for running the API from the IDE against the containers' database and broker:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up postgres rabbitmq rabbitmq-usuarios
+#
+# Publishes their ports on localhost. Kept out of docker-compose.yml so `docker compose up` does not
+# collide with a Postgres or broker already running on the host.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+  rabbitmq:
+    ports:
+      - "127.0.0.1:5671:5671"

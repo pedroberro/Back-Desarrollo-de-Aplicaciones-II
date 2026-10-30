@@ -1,45 +1,132 @@
-# Local broker for the asynchronous charge of bookings, hardened as in production (SEC-07):
-# TLS only (amqps on 5671, plain AMQP disabled), no guest account, and the app with its own user
-# limited to its own vhost and to the planta-libre.* exchanges and queues.
+# The whole system with one command, from a clean clone and with nothing to fill in:
 #
-#   ./docker/rabbitmq/generar-certificados.sh      once: local CA and server certificate
-#   docker compose up -d                           broker + one-shot provisioning of the app user
+#   docker compose up --build
 #
-# Needs in .env (see .env.example): RABBITMQ_ADMIN_USER, RABBITMQ_ADMIN_PASSWORD, RABBITMQ_APP_PASSWORD.
-# The management console listens on localhost only: http://localhost:15672 with the admin account.
+# Then: web app http://localhost:3000 · API http://localhost:8080/api/health
+#       RabbitMQ console http://localhost:15672 (user planta-libre-admin)
+# See README.md for the demo accounts and how to read the generated passwords.
+#
+# Secrets are generated on the first run by the `init` service (random, in the `secretos` volume)
+# and never live in the repository (SEC-10). A developer's .env may set any of them instead.
+#
+# The front is built from its repository cloned next to this one (both repos are private, so
+# Docker cannot fetch it by itself). Another folder: FRONT_CONTEXT=../Front docker compose up --build
 services:
+  # One-shot: secrets and the broker's TLS certificates, then exits.
+  init:
+    image: alpine:3.20
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      CIFRADO_CLAVE_ACTUAL: ${CIFRADO_CLAVE_ACTUAL:-}
+      MENSAJERIA_FIRMA_SECRETO: ${MENSAJERIA_FIRMA_SECRETO:-}
+      RABBITMQ_ADMIN_PASSWORD: ${RABBITMQ_ADMIN_PASSWORD:-}
+      RABBITMQ_APP_PASSWORD: ${RABBITMQ_APP_PASSWORD:-}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    volumes:
+      - ./docker/init/inicializar.sh:/inicializar.sh:ro
+      - secretos:/secretos
+      - ./docker/rabbitmq/certs:/certs
+    entrypoint: ["sh", "/inicializar.sh"]
+
+  postgres:
+    image: postgres:16-alpine
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_DB: reservas_espacios
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /secretos/db_password
+    volumes:
+      - secretos:/secretos:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reservas_espacios"]
+      interval: 5s
+      retries: 20
+
+  # Hardened broker (SEC-07): TLS only (amqps on 5671, plain AMQP off), no guest account, and the
+  # app with its own user limited to its own vhost and to the planta-libre.* exchanges and queues.
   rabbitmq:
     image: rabbitmq:3.13-management
-    container_name: planta-libre-rabbitmq
+    depends_on:
+      init:
+        condition: service_completed_successfully
     environment:
       # A named administrator instead of guest: with these set, guest is never created.
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_ADMIN_USER:?Falta RABBITMQ_ADMIN_USER en .env}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_ADMIN_PASSWORD:?Falta RABBITMQ_ADMIN_PASSWORD en .env}
+      RABBITMQ_DEFAULT_USER: planta-libre-admin
+    entrypoint:
+      - sh
+      - -c
+      - export RABBITMQ_DEFAULT_PASS="$$(cat /secretos/rabbitmq_admin_password)" && exec docker-entrypoint.sh rabbitmq-server
     ports:
-      - "5671:5671"
       - "127.0.0.1:15672:15672"
     volumes:
       - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/90-planta-libre.conf:ro
       - ./docker/rabbitmq/certs:/etc/rabbitmq/certs:ro
+      - secretos:/secretos:ro
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
       retries: 20
 
-  # Creates the vhost and the app account with minimal permissions, then exits.
+  # One-shot: creates the vhost and the app account with minimal permissions, then exits.
   rabbitmq-usuarios:
     image: curlimages/curl:8.10.1
     depends_on:
       rabbitmq:
         condition: service_healthy
-    environment:
-      RABBITMQ_ADMIN_USER: ${RABBITMQ_ADMIN_USER}
-      RABBITMQ_ADMIN_PASSWORD: ${RABBITMQ_ADMIN_PASSWORD}
-      RABBITMQ_APP_PASSWORD: ${RABBITMQ_APP_PASSWORD:?Falta RABBITMQ_APP_PASSWORD en .env}
     volumes:
       - ./docker/rabbitmq/provisionar.sh:/provisionar.sh:ro
+      - secretos:/secretos:ro
     entrypoint: ["sh", "/provisionar.sh"]
 
+  back:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq-usuarios:
+        condition: service_completed_successfully
+    # The secrets come from the volume, not from the image or the repository.
+    entrypoint:
+      - sh
+      - -c
+      - set -a && . /secretos/env && set +a && exec java -jar app.jar
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/reservas_espacios
+      DB_USERNAME: postgres
+      MENSAJERIA_HABILITADA: "true"
+      SPRING_RABBITMQ_SSL_BUNDLE: rabbitmq
+      SPRING_SSL_BUNDLE_PEM_RABBITMQ_TRUSTSTORE_CERTIFICATE: file:/certs/ca.pem
+      FRONTEND_URL: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      # No mail credentials locally: confirmation and recovery links are printed in the log.
+      MAIL_LOG_LINKS: "true"
+      SHOW_SQL: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      - secretos:/secretos:ro
+      - ./docker/rabbitmq/certs:/certs:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      retries: 60
+      start_period: 30s
+
+  front:
+    build:
+      context: ${FRONT_CONTEXT:-../Front-Desarrollo-de-Aplicaciones-II}
+    depends_on:
+      back:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
 volumes:
+  secretos:
+  postgres-data:
   rabbitmq-data:

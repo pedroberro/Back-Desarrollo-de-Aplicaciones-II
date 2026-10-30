@@ -218,16 +218,10 @@ La migración `V13__create_cobros.sql` agrega `reservas.medio_pago_id` (la tarje
 ## 4. Cómo correrlo y qué mostrar
 
 ```bash
-docker compose up -d rabbitmq
+docker compose up --build
 ```
 
-En `back/.env`:
-
-```properties
-MENSAJERIA_HABILITADA=true
-```
-
-Después se levantan el backend y el front como siempre. La consola de RabbitMQ queda en http://localhost:15672 (`guest` / `guest`).
+Levanta todo con el cobro asincrónico activado: base, broker, backend y front (ver el [README](../README.md)). La consola de RabbitMQ queda en http://localhost:15672 con el usuario `planta-libre-admin`; su contraseña se lee con `docker compose exec back cat /secretos/rabbitmq_admin_password`. La aplicación web queda en http://localhost:3000.
 
 Recorrido de demo, con las tarjetas de prueba de la pasarela simulada (las mismas que usan los entornos sandbox de los proveedores):
 
