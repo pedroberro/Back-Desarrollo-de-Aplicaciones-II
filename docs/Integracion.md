@@ -6,7 +6,7 @@ Complementa al [documento técnico](DocumentoTecnico.md) y al [dominio de reserv
 Este documento cubre los tres puntos del checkpoint:
 
 1. el diagrama de arquitectura de integración (SOA): qué componentes internos y qué sistemas externos se conectan, y por qué canal;
-2. la clasificación justificada de cada integración externa en síncrona (SOAP o REST) o asincrónica (cola o tópico);
+2. la clasificación justificada de cada integración externa en síncrona o asincrónica (cola o tópico);
 3. el primer proceso de negocio asincrónico funcionando de punta a punta con un broker real: **cobro y confirmación de una reserva**, sobre una cola punto a punto de RabbitMQ.
 
 ---
@@ -45,7 +45,7 @@ flowchart LR
         direction TB
         GMAIL["Gmail API<br/>(Google)"]
         PAS["Pasarela de pagos<br/>(hoy simulada)"]
-        ARCA["Facturación electrónica<br/>ARCA · WSFEv1"]:::futuro
+        HIBP["Pwned Passwords<br/>(Have I Been Pwned)"]
         ACC["Control de acceso<br/>del edificio"]:::futuro
     end
 
@@ -54,8 +54,8 @@ flowchart LR
     Q -- "consume (AMQP)" --> COB
     COB -- "REST · síncrono" --> PAS
     AVI -- "REST · síncrono, fuera del pedido" --> GMAIL
+    API -- "REST · síncrono, en el alta y el cambio de contraseña" --> HIBP
     API -- "JDBC" --> DB
-    COB -. "SOAP · próxima entrega" .-> ARCA
     BUS -. "tópico reserva.confirmada · próxima entrega" .-> ACC
 
     classDef futuro stroke-dasharray: 5 5
@@ -83,7 +83,7 @@ Los servicios de negocio no conocen RabbitMQ: `ReservaServiceImpl` publica un ev
 | Reservas → Cobros | interna, entre componentes | Cola punto a punto (AMQP) | **Asincrónica** | **Hecha (este checkpoint)** |
 | Cobros → Pasarela de pagos | saliente | REST/JSON | Síncrona, dentro del proceso asincrónico | Simulada |
 | Avisos → Gmail API | saliente | REST/JSON sobre HTTPS (OAuth 2) | Síncrona, disparada fuera del pedido | Hecha |
-| Cobros → Facturación electrónica ARCA | saliente | SOAP (WSFEv1, con WSDL) | Síncrona | Próxima entrega |
+| Identidad → Pwned Passwords | saliente | REST sobre HTTPS | Síncrona, dentro del pedido | Hecha |
 | Reserva confirmada → mail, control de acceso, auditoría | interna → varios | Tópico pub/sub | **Asincrónica** | Próxima entrega |
 
 ### Por qué cada una
@@ -98,7 +98,9 @@ Los servicios de negocio no conocen RabbitMQ: `ReservaServiceImpl` publica un ev
 
 **Gmail API: REST síncrono, fuera del pedido.** Google ofrece el envío solamente como API REST. La llamada se hace en otro hilo (`@Async`) para que el tiempo de respuesta no revele si una cuenta existe y para que una falla del correo no rompa el flujo. Esto **no** es mensajería: si la aplicación se reinicia, un mail en vuelo se pierde. En la próxima entrega los avisos pasan a ser suscriptores de un tópico.
 
-**Facturación electrónica: SOAP síncrono.** El web service de factura electrónica de ARCA (ex AFIP), WSFEv1, es SOAP con WSDL publicado. Es exactamente el sistema "legado" que pide el enunciado. Es síncrono porque la respuesta trae el CAE (código de autorización), sin el cual la factura no existe. Se va a invocar desde el proceso de cobro, ya fuera del pedido de la persona.
+**Pwned Passwords: REST síncrono, dentro del pedido.** Al registrarse o cambiar la contraseña se consulta si la contraseña aparece en filtraciones conocidas. Tiene que ser síncrono porque la respuesta decide si se acepta la contraseña. Solo salen los primeros cinco caracteres del hash SHA-1 (k-anonimato). La llamada tiene un timeout de 3 segundos: si el servicio no responde, se omite la verificación y se registra en el log, para que una caída de un tercero no bloquee los registros.
+
+**Sin SOAP.** Todos los sistemas externos con los que se integra Planta Libre exponen REST: Gmail, Pwned Passwords y los proveedores de pago. La facturación electrónica con ARCA (WSFEv1), que la versión anterior de este documento preveía como integración SOAP, quedó fuera del alcance del sistema.
 
 **Reserva confirmada: tópico pub/sub.** Cuando una reserva se confirma hay varios interesados independientes: avisar por mail, habilitar la tarjeta en el control de acceso del edificio y registrar la ocupación. Ninguno debería conocer a los otros, y agregar uno nuevo no debería tocar al publicador. Eso es un tópico: un mensaje, muchas copias.
 
@@ -242,4 +244,4 @@ Sin `MENSAJERIA_HABILITADA=true` la aplicación arranca igual que antes, sin nec
 - **Publicación después del commit, sin outbox.** Si la aplicación se cae justo entre el commit de la reserva y el envío del mensaje, la reserva queda `PENDIENTE` sin cobro. Para la entrega obligatoria, la versión robusta es un *transactional outbox*: guardar el mensaje en una tabla dentro de la misma transacción y publicarlo desde ahí.
 - **La pasarela es simulada.** El puerto `PasarelaPagos` ya está separado. El adaptador REST real se agrega sin tocar `CobroServiceImpl`.
 - **Reintegros sincrónicos.** Al cancelar, el reintegro se pide a la pasarela dentro de la misma transacción (ver la política de cancelación en [DominioReservas.md](DominioReservas.md)). Con un proveedor real conviene pasarlo también a una cola.
-- **Para la entrega obligatoria:** el tópico `reserva.confirmada` con sus suscriptores, el servicio SOAP de facturación con su WSDL, el servicio REST hacia el partner de pagos, y el flujo crítico "reservar → cobrar → confirmar" con transacciones declarativas explicado ante una falla a mitad de camino. Este proceso ya cubre buena parte de ese último punto.
+- **Para la entrega obligatoria:** el tópico `reserva.confirmada` con sus suscriptores, el servicio REST hacia el partner de pagos, y el flujo crítico "reservar → cobrar → confirmar" con transacciones declarativas explicado ante una falla a mitad de camino. Este proceso ya cubre buena parte de ese último punto.
