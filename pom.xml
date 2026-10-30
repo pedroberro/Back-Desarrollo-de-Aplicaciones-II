@@ -22,9 +22,9 @@
         <jjwt.version>0.12.6</jjwt.version>
         <!-- Newer than the one Spring Boot 3.3 manages: older clients are rejected by Docker Engine 29. -->
         <testcontainers.version>1.21.4</testcontainers.version>
-        <!-- Coverage gate of the business layer (criteria: 80 % lines, 70 % branches). Reported on
-             every build; it fails the build once set to true. -->
-        <cobertura.exigir>false</cobertura.exigir>
+        <!-- Coverage gate of the business layer (criteria: 80 % lines, 70 % branches): below it the
+             build fails. -->
+        <cobertura.exigir>true</cobertura.exigir>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
