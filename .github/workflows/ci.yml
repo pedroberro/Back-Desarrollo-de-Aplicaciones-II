@@ -45,6 +45,7 @@ jobs:
             target/surefire-reports/
             target/site/jacoco/
             target/spotbugsXml.xml
+            target/pit-reports/
           if-no-files-found: ignore
 
   # Optional: runs once the repository has the SonarCloud variables and token configured.

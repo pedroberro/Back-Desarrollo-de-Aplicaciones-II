@@ -124,7 +124,9 @@ public class ReservaServiceImpl implements ReservaService {
                 .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
         LocalDateTime ahora = LocalDateTime.now(reloj);
         if (!reglas.cancelable(reserva, ahora)) {
-            throw new BadRequestException("Solo se pueden cancelar las reservas pendientes o confirmadas que todavía no empezaron");
+            // The booking's current state does not allow it: a conflict, not a malformed request.
+            throw new ConflictException("Solo se pueden cancelar las reservas pendientes o confirmadas que todavía no empezaron",
+                    "RESERVA_NO_CANCELABLE");
         }
         // Policy, refund and the customer's mail: the same path an administrator's cancellation takes.
         cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.CLIENTE, null);

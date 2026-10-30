@@ -1,5 +1,6 @@
 package com.daii.backdaii.exception;
 
+import com.daii.backdaii.domain.enums.TransicionInvalidaException;
 import com.daii.backdaii.domain.enums.EventoAuditoria;
 import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.service.AuditoriaService;
@@ -51,6 +52,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ReservasAfectadas> handleReservasAfectadas(ReservasAfectadasException ex) {
         return ResponseEntity.status(ex.getStatus())
                 .body(new ReservasAfectadas(ex.getMessage(), ex.getCode(), ex.getReservas()));
+    }
+
+    /** Invalid state change of a booking (State pattern in EstadoReserva). */
+    @ExceptionHandler(TransicionInvalidaException.class)
+    public ResponseEntity<ErrorResponse> handleTransicionInvalida(TransicionInvalidaException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ex.getMessage(), null, TransicionInvalidaException.CODE));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

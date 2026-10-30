@@ -90,7 +90,7 @@ class BarridoCobrosTest {
     @Test
     void siMientrasTantoSeResolvioNoHaceNada() {
         Reserva reserva = pendiente(0);
-        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reserva.cambiarEstado(EstadoReserva.CONFIRMADA);
 
         assertThat(barrido.barrer()).isEqualTo(new BarridoCobros.Resultado(0, 0));
         verifyNoInteractions(eventos);

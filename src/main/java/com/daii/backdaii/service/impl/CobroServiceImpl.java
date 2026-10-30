@@ -90,7 +90,7 @@ public class CobroServiceImpl implements CobroService {
                 .procesadoEl(LocalDateTime.now(reloj))
                 .build());
         // A declined booking is cancelled so the slot is free again for someone else.
-        reserva.setEstado(resultado.aprobado() ? EstadoReserva.CONFIRMADA : EstadoReserva.CANCELADA);
+        reserva.cambiarEstado(resultado.aprobado() ? EstadoReserva.CONFIRMADA : EstadoReserva.CANCELADA);
         log.info("Reserva {}: cobro {} por {}", reserva.getCodigo(), resultado.aprobado() ? "aprobado" : "rechazado", monto);
 
         eventos.publishEvent(new CobroResuelto(reserva.getId(), reserva.getCodigo(),

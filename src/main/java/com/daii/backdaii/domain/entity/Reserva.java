@@ -44,8 +44,10 @@ public class Reserva {
     @Column(nullable = false)
     private LocalDateTime fin;
 
+    /** Changed only through {@link #cambiarEstado}, which checks the transition. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Setter(AccessLevel.NONE)
     private EstadoReserva estado;
 
     /** Card chosen to pay it. Null means the customer's main card at charge time. */
@@ -82,6 +84,12 @@ public class Reserva {
     /** What screens show: an active booking that already ended is FINALIZADA. */
     public EstadoReserva estadoEn(LocalDateTime ahora) {
         return estado.ocupa() && !fin.isAfter(ahora) ? EstadoReserva.FINALIZADA : estado;
+    }
+
+    /** @throws com.daii.backdaii.domain.enums.TransicionInvalidaException when the current state does not allow it */
+    public void cambiarEstado(EstadoReserva destino) {
+        estado.validarPaso(destino);
+        estado = destino;
     }
 
     public void registrarCambio(Usuario autor, String motivo, String detalle) {

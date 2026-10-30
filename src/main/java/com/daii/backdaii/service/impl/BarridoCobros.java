@@ -88,7 +88,7 @@ public class BarridoCobros {
     }
 
     private void abandonar(Reserva reserva) {
-        reserva.setEstado(EstadoReserva.CANCELADA);
+        reserva.cambiarEstado(EstadoReserva.CANCELADA);
         log.warn("Reserva {}: cobro sin respuesta tras {} reencolados, se cancela", reserva.getCodigo(), maxReencolados);
         // Same mail as a declined card: the booking is cancelled and the slot is free again.
         eventos.publishEvent(new CobroResuelto(reserva.getId(), reserva.getCodigo(),

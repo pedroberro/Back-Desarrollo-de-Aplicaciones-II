@@ -45,6 +45,8 @@ class Cancelaciones {
      */
     Resultado cancelar(Reserva reserva, Motivo motivo, String detalle) {
         LocalDateTime ahora = LocalDateTime.now(reloj);
+        // First, before any refund: an invalid transition must not reach the payment provider.
+        reserva.getEstado().validarPaso(EstadoReserva.CANCELADA);
         Quien quien = motivo == Motivo.CLIENTE ? Quien.CLIENTE : Quien.ADMINISTRADOR;
         int porcentaje = PoliticaCancelacion.porcentajeReintegro(reserva.getInicio(), ahora, quien);
 
@@ -55,7 +57,8 @@ class Cancelaciones {
             reintegrar(cobro.get(), reintegrado, ahora);
         }
 
-        reserva.setEstado(EstadoReserva.CANCELADA);
+        reserva.cambiarEstado(EstadoReserva.CANCELADA);
+
         eventos.publishEvent(new ReservaCancelada(reserva.getCodigo(),
                 Vistas.describir(reserva.getEspacio(), new Franja(reserva.getInicio(), reserva.getFin())),
                 reserva.getUsuario().getEmail(), reserva.getUsuario().getNombre(), motivo, detalle,

@@ -8,6 +8,7 @@ import com.daii.backdaii.domain.entity.Piso;
 import com.daii.backdaii.domain.entity.Reserva;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.EstadoReserva;
+import com.daii.backdaii.domain.enums.TransicionInvalidaException;
 import com.daii.backdaii.domain.enums.EventoAuditoria;
 import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.domain.enums.Rol;
@@ -151,15 +152,18 @@ public class AdminReservaServiceImpl implements AdminReservaService {
         LocalDateTime ahora = LocalDateTime.now(reloj);
 
         if (!reserva.getFin().isAfter(ahora)) {
-            throw new BadRequestException("La reserva ya terminó: no se puede editar");
-        }
-        if (request.estado() == EstadoReserva.FINALIZADA) {
-            throw new BadRequestException("Una reserva finaliza sola cuando pasa su horario");
+            // FINALIZADA is final: nothing of a finished booking changes, its state included.
+            throw new TransicionInvalidaException(EstadoReserva.FINALIZADA,
+                    request.estado() != null ? request.estado() : reserva.getEstado());
         }
 
         Usuario clienteAnterior = reserva.getUsuario();
         Usuario cliente = request.usuarioId().equals(clienteAnterior.getId()) ? clienteAnterior : cliente(request.usuarioId());
         EstadoReserva estado = request.estado() != null ? request.estado() : reserva.getEstado();
+        if (estado != reserva.getEstado()) {
+            // Before any other check or side effect: an invalid transition answers 409 right away.
+            reserva.getEstado().validarPaso(estado);
+        }
         Franja franja = TomaDeFranja.franja(request.inicio(), request.fin());
         Franja franjaAnterior = new Franja(reserva.getInicio(), reserva.getFin());
         Espacio espacioAnterior = reserva.getEspacio();
@@ -207,8 +211,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
         if (cancela) {
             // Full refund and its own mail, the same path as any other cancellation.
             cancelaciones.cancelar(reserva, ReservaCancelada.Motivo.ADMINISTRADOR, motivo);
-        } else {
-            reserva.setEstado(estado);
+        } else if (estado != reserva.getEstado()) {
+            reserva.cambiarEstado(estado);
         }
         tomaDeFranja.guardar(() -> reservaRepository.saveAndFlush(reserva));
         auditoria.registrar(EventoAuditoria.RESERVA_EDITADA_POR_ADMIN, ResultadoAuditoria.EXITO, adminEmail,
