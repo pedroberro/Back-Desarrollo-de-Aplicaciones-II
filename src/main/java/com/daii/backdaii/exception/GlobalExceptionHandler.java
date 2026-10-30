@@ -21,6 +21,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.MultipartException;
@@ -104,7 +105,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse("No tenés permiso para esta acción"));
     }
 
-    @ExceptionHandler({MissingServletRequestParameterException.class, MissingRequestHeaderException.class})
+    // MissingPathVariableException: an id in the URL that is blank, such as /api/espacios/%20.
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingRequestHeaderException.class,
+            MissingPathVariableException.class})
     public ResponseEntity<ErrorResponse> handleMissing(Exception ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse("Falta un dato obligatorio de la solicitud"));
     }

@@ -42,6 +42,32 @@ class ContratoApiIntegracionTest extends IntegracionBase {
                 .andExpect(status().isUnsupportedMediaType());
     }
 
+    /** Found by Schemathesis: a blank id in the URL answered 500. */
+    @Test
+    void unIdVacioEnLaRutaEsUnPedidoInvalido() throws Exception {
+        mvc.perform(get("/api/espacios/{id}", " ").with(como("cualquiera@pruebas.local", Rol.CLIENTE)))
+                .andExpect(status().isBadRequest());
+    }
+
+    /** Found by Schemathesis: a huge page number overflowed the query offset and answered 500. */
+    @Test
+    void unaPaginaEnormeNoEsUnErrorDelServidor() throws Exception {
+        mvc.perform(get("/api/admin/reservas").with(comoAdmin()).param("page", "2147483647").param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty());
+        mvc.perform(get("/api/admin/auditoria").with(comoAdmin()).param("page", "2147483647").param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty());
+    }
+
+    @Test
+    void losHorariosSeDocumentanComoTexto() throws Exception {
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.LocalTime").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.EdificioRef.properties.apertura.type").value("string"));
+    }
+
     /** Found by Schemathesis: a multipart Content-Type without its boundary answered 500. */
     @Test
     void unPedidoMultipartNoEsUnErrorDelServidor() throws Exception {

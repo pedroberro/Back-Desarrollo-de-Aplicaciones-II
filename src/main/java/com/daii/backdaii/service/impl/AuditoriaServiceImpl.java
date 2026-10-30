@@ -27,6 +27,7 @@ public class AuditoriaServiceImpl implements AuditoriaService {
 
     private static final Logger log = LoggerFactory.getLogger(AuditoriaServiceImpl.class);
     private static final int TAMANIO_MAXIMO = 100;
+    private static final int PAGINA_MAXIMA = 100_000;
 
     private final AuditoriaRepository repositorio;
     private final Clock reloj;
@@ -56,7 +57,7 @@ public class AuditoriaServiceImpl implements AuditoriaService {
     public PaginaAuditoria buscar(EventoAuditoria evento, String usuario, int pagina, int tamanio) {
         String filtro = usuario == null || usuario.isBlank() ? null : usuario.trim();
         Page<RegistroAuditoria> resultado = repositorio.buscar(evento, filtro,
-                PageRequest.of(Math.max(pagina, 0), Math.clamp(tamanio, 1, TAMANIO_MAXIMO)));
+                PageRequest.of(Math.clamp(pagina, 0, PAGINA_MAXIMA), Math.clamp(tamanio, 1, TAMANIO_MAXIMO)));
         return new PaginaAuditoria(resultado.getContent().stream()
                 .map(r -> new PaginaAuditoria.Registro(r.getId(), r.getFecha(), r.getEvento(), r.getResultado(),
                         r.getUsuario(), r.getIp(), r.getUserAgent(), r.getDetalle()))

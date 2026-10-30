@@ -57,6 +57,7 @@ public class AdminReservaServiceImpl implements AdminReservaService {
 
     private static final int MOTIVO_MINIMO = 10;
     private static final int TAMANIO_MAXIMO = 100;
+    private static final int PAGINA_MAXIMA = 100_000;
 
     private final ReservaRepository reservaRepository;
     private final BloqueoRepository bloqueoRepository;
@@ -76,7 +77,8 @@ public class AdminReservaServiceImpl implements AdminReservaService {
     @Transactional(readOnly = true)
     public PaginaReservas listar(FiltroReservas filtro, Long espacioId, int pagina, int tamanio) {
         LocalDateTime ahora = LocalDateTime.now(reloj);
-        PageRequest pageable = PageRequest.of(Math.max(pagina, 0), Math.clamp(tamanio, 1, TAMANIO_MAXIMO),
+        // The page is capped too: page × size beyond Integer.MAX_VALUE cannot be queried.
+        PageRequest pageable = PageRequest.of(Math.clamp(pagina, 0, PAGINA_MAXIMA), Math.clamp(tamanio, 1, TAMANIO_MAXIMO),
                 Sort.by("inicio").ascending().and(Sort.by("id")));
         Page<Reserva> page = reservaRepository.findAll(especificacion(filtro, espacioId, ahora), pageable);
         return new PaginaReservas(

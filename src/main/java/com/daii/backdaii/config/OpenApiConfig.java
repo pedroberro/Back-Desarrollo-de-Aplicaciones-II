@@ -19,12 +19,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Map;
 
 /**
  * The published API contract (/v3/api-docs). Three things springdoc cannot infer:
  * <ul>
- *   <li>Dates and times are the building's local time, without offset ("2026-11-03T10:00:00"), not
+ *   <li>Dates and times (and opening hours) are the building's local time, without offset ("2026-11-03T10:00:00"), not
  *       RFC 3339 date-times.</li>
  *   <li>Optional fields travel as null.</li>
  *   <li>Every endpoint can answer 400, 403, 404 and 409 with the shared error body.</li>
@@ -45,6 +46,8 @@ public class OpenApiConfig {
                 new StringSchema().pattern("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?$")
                         .example("2026-11-03T10:00:00")
                         .description("Hora local del edificio, sin zona horaria"));
+        SpringDocUtils.getConfig().replaceWithSchema(LocalTime.class,
+                new StringSchema().pattern("^\\d{2}:\\d{2}(:\\d{2})?$").example("08:00").description("Hora local, HH:mm"));
     }
 
     @Bean
