@@ -48,6 +48,101 @@ jobs:
             target/pit-reports/
           if-no-files-found: ignore
 
+  # The API running for real against PostgreSQL: the Postman collection (every endpoint with a success
+  # and an error case) and the contract tests against the published OpenAPI. Secrets are random per run.
+  api:
+    name: Pruebas de API (Newman y Schemathesis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: http://localhost:8080
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: reservas_espacios
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Herramientas
+        run: pip install "schemathesis>=4,<5" "bcrypt>=4,<5"
+
+      - name: Secretos de esta corrida
+        run: |
+          for variable in DB_PASSWORD JWT_SECRET CIFRADO_CLAVE_ACTUAL DEMO_PASSWORD ADMIN_PASSWORD; do
+            valor=$(openssl rand -hex 32)
+            echo "::add-mask::$valor"
+            echo "$variable=$valor" >> "$GITHUB_ENV"
+          done
+
+      - name: Base de datos
+        run: |
+          docker run -d --name postgres -e POSTGRES_PASSWORD="$DB_PASSWORD" -e POSTGRES_DB="$PGDATABASE" \
+            -p 5432:5432 postgres:16-alpine
+          for i in $(seq 1 30); do docker exec postgres pg_isready -U postgres -d "$PGDATABASE" && break; sleep 2; done
+
+      - name: Compilar y levantar la API
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/reservas_espacios
+          DB_USERNAME: postgres
+          VERIFICAR_FILTRACIONES_HIBP: "false"
+          MENSAJERIA_HABILITADA: "false"
+          SHOW_SQL: "false"
+        run: |
+          mvn -B -ntp -DskipTests package
+          nohup java -jar target/back-daii-*.jar > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -fs "$BASE_URL/api/health" && break; sleep 2; done
+          curl -fsS "$BASE_URL/api/health"
+
+      - name: Datos de prueba
+        env:
+          PGPASSWORD: ${{ env.DB_PASSWORD }}
+        run: ./api-tests/preparar-datos.sh
+
+      - name: Colección de Postman (Newman)
+        run: |
+          npx --yes newman@6.2.1 run api-tests/PlantaLibre.postman_collection.json \
+            -e api-tests/out/entorno.json --export-environment api-tests/out/entorno-final.json \
+            --reporters cli,junit --reporter-junit-export api-tests/out/newman.xml
+
+      - name: Contrato OpenAPI (Schemathesis)
+        run: |
+          curl -fsS "$BASE_URL/v3/api-docs" -o api-tests/out/openapi.json
+          token() { python3 -c "import json,sys; print(next(v['value'] for v in json.load(open('api-tests/out/entorno-final.json'))['values'] if v['key'] == sys.argv[1]))" "$1"; }
+          # Sign-in endpoints are left out: fuzzing them would close or lock the sessions in use.
+          for quien in adminToken demoToken; do
+            schemathesis run "$BASE_URL/v3/api-docs" \
+              --header "Authorization: Bearer $(token $quien)" \
+              --checks not_a_server_error,content_type_conformance,response_schema_conformance \
+              --exclude-path-regex '^/api/auth/' \
+              --max-examples 10 --rate-limit 150/m \
+              --report junit --report-dir "api-tests/out/schemathesis-$quien"
+          done
+
+      - name: Reportes de las pruebas de API
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruebas-api
+          path: |
+            api-tests/out/newman.xml
+            api-tests/out/openapi.json
+            api-tests/out/schemathesis-*
+            api.log
+          if-no-files-found: ignore
+
   # Optional: runs once the repository has the SonarCloud variables and token configured.
   sonarcloud:
     name: SonarCloud

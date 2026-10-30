@@ -77,6 +77,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/health", "/api/auth/register", "/api/auth/login", "/api/auth/email-disponible", "/api/auth/confirmar-email", "/api/auth/reenviar-confirmacion", "/api/auth/forgot-password", "/api/auth/reset-password",
                                 "/api/auth/login/segundo-factor", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         // Without this, any error forwarded to /error is masked as an empty 403.
+                        // Published API contract (springdoc): what the endpoints accept and return.
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

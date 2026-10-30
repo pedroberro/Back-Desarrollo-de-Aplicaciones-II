@@ -18,7 +18,11 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -97,6 +101,23 @@ public class GlobalExceptionHandler {
         auditoria.registrar(EventoAuditoria.ACCESO_DENEGADO, ResultadoAuditoria.DENEGADO, request.getRemoteUser(),
                 request.getMethod() + " " + request.getRequestURI());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse("No tenés permiso para esta acción"));
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingRequestHeaderException.class})
+    public ResponseEntity<ErrorResponse> handleMissing(Exception ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse("Falta un dato obligatorio de la solicitud"));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorResponse("El cuerpo tiene que enviarse como application/json"));
+    }
+
+    // The client accepts nothing the API can produce, so the answer carries no body.
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<Void> handleNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

@@ -72,6 +72,14 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+# API contract at /v3/api-docs (OpenAPI 3), used by the contract tests. Error answers are added by
+# OpenApiConfig, not taken from the exception handlers.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  override-with-generic-response: false
+  default-produces-media-type: application/json
+
 app:
   # Asynchronous charging of bookings through RabbitMQ (see docs/Integracion.md). Off by default
   # so the app still starts without a broker; then bookings stay PENDIENTE until an admin confirms.

@@ -1,0 +1,3725 @@
+{
+  "info": {
+    "name": "Planta Libre API",
+    "description": "Cada endpoint con un caso de éxito y uno de error. Se corre en orden: los pedidos se pasan ids y tokens. Generada por api-tests/generar_coleccion.py; el entorno lo crea api-tests/preparar-datos.sh.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function iso(d) { return d.toISOString().slice(0, 10); }",
+          "const hoy = new Date();",
+          "let habil = new Date(hoy.getTime() + 2 * 86400000);",
+          "while (habil.getUTCDay() === 0 || habil.getUTCDay() === 6) { habil = new Date(habil.getTime() + 86400000); }",
+          "pm.collectionVariables.set('proximoHabil', iso(habil));",
+          "pm.collectionVariables.set('diaLejano', iso(new Date(hoy.getTime() + 250 * 86400000)));"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "01 Salud",
+      "description": "El servicio responde.",
+      "item": [
+        {
+          "name": "Estado del servicio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('está ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Método no permitido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Autenticación",
+      "description": "Registro, confirmación, inicio de sesión, renovación y segundo factor.",
+      "item": [
+        {
+          "name": "Login de cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('demoToken', pm.response.json().token);",
+                  "const c = (pm.response.headers.get('Set-Cookie') || '').match(/pl_refresh=([^;]+)/); if (c) { pm.collectionVariables.set('demoRefresh', c[1]); }",
+                  "pm.test('entrega el token', () => pm.expect(pm.response.json().token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login con clave incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"Incorrecta-123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login sin email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "pm.test('señala el campo', () => pm.expect(pm.response.json().errors).to.have.property('email'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Incorrecta-123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Registro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.test('queda pendiente de confirmar', () => pm.expect(pm.response.json().estado).to.eql('PENDIENTE'));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('registroEmail', 'postman-' + pm.variables.replaceIn('{{$guid}}') + '@pruebas.plantalibre.local');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Registro Postman\",\n  \"email\": \"{{registroEmail}}\",\n  \"telefono\": \"+54 11 5555 0000\",\n  \"password\": \"Registro-2026-Postman\",\n  \"rol\": \"CLIENTE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Registro con email repetido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Repetido\",\n  \"email\": \"{{nuevoEmail}}\",\n  \"telefono\": \"+54 11 5555 0000\",\n  \"password\": \"Registro-2026-Postman\",\n  \"rol\": \"CLIENTE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Email disponible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ya está tomado', () => pm.expect(pm.response.json().disponible).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/email-disponible",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "email-disponible"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{nuevoEmail}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Email disponible con email inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/email-disponible",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "email-disponible"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"no-es-un-email\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reenviar confirmación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reenviar-confirmacion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reenviar-confirmacion"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registroEmail}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reenviar confirmación sin email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reenviar-confirmacion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reenviar-confirmacion"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Confirmar email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('nuevoToken', pm.response.json().token);",
+                  "pm.collectionVariables.set('nuevoId', pm.response.json().usuario.id);",
+                  "pm.test('queda activo', () => pm.expect(pm.response.json().usuario.estado).to.eql('ACTIVO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/confirmar-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "confirmar-email"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{confirmToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Confirmar email con link inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "pm.test('código LINK_INVALIDO', () => pm.expect(pm.response.json().code).to.eql('LINK_INVALIDO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/confirmar-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "confirmar-email"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"no-existe\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Olvidé mi clave",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registroEmail}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Olvidé mi clave sin email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Restablecer la clave",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reset-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"nuevaPassword\": \"Restablecida-2026-Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Restablecer con link inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reset-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"no-existe\",\n  \"nuevaPassword\": \"Restablecida-2026-Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Renovar la sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('demoToken', pm.response.json().token);",
+                  "const c = (pm.response.headers.get('Set-Cookie') || '').match(/pl_refresh=([^;]+)/); if (c) { pm.collectionVariables.set('demoRefresh', c[1]); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "pl_refresh={{demoRefresh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Renovar sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Login de administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pide segundo factor', () => pm.expect(pm.response.json().segundoFactorRequerido).to.eql(true));",
+                  "pm.collectionVariables.set('desafio', pm.response.json().desafio);",
+                  "pm.collectionVariables.set('adminSecreto', pm.response.json().altaSegundoFactor.secreto);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Segundo factor con código incorrecto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "pm.test('código CODIGO_INCORRECTO', () => pm.expect(pm.response.json().code).to.eql('CODIGO_INCORRECTO'));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function base32AHex(texto) {",
+                  "    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "    let bits = '';",
+                  "    for (const c of texto.replace(/=+$/, '').toUpperCase()) {",
+                  "        const v = alfabeto.indexOf(c);",
+                  "        if (v >= 0) { bits += v.toString(2).padStart(5, '0'); }",
+                  "    }",
+                  "    let hex = '';",
+                  "    for (let i = 0; i + 8 <= bits.length; i += 8) { hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0'); }",
+                  "    return hex;",
+                  "}",
+                  "function totp(secreto) {",
+                  "    const CryptoJS = require('crypto-js');",
+                  "    const paso = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "    const h = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(paso), CryptoJS.enc.Hex.parse(base32AHex(secreto))).toString(CryptoJS.enc.Hex);",
+                  "    const desde = parseInt(h.substr(h.length - 1), 16);",
+                  "    const binario = (parseInt(h.substr(desde * 2, 8), 16) & 0x7fffffff) % 1000000;",
+                  "    return binario.toString().padStart(6, '0');",
+                  "}",
+                  "pm.collectionVariables.set('totp', totp(pm.collectionVariables.get('adminSecreto')));",
+                  "",
+                  "pm.collectionVariables.set('totpIncorrecto', pm.collectionVariables.get('totp') === '000000' ? '111111' : '000000');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login/segundo-factor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                "segundo-factor"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"desafio\": \"{{desafio}}\",\n  \"codigo\": \"{{totpIncorrecto}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Segundo factor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function base32AHex(texto) {",
+                  "    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "    let bits = '';",
+                  "    for (const c of texto.replace(/=+$/, '').toUpperCase()) {",
+                  "        const v = alfabeto.indexOf(c);",
+                  "        if (v >= 0) { bits += v.toString(2).padStart(5, '0'); }",
+                  "    }",
+                  "    let hex = '';",
+                  "    for (let i = 0; i + 8 <= bits.length; i += 8) { hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0'); }",
+                  "    return hex;",
+                  "}",
+                  "function totp(secreto) {",
+                  "    const CryptoJS = require('crypto-js');",
+                  "    const paso = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "    const h = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(paso), CryptoJS.enc.Hex.parse(base32AHex(secreto))).toString(CryptoJS.enc.Hex);",
+                  "    const desde = parseInt(h.substr(h.length - 1), 16);",
+                  "    const binario = (parseInt(h.substr(desde * 2, 8), 16) & 0x7fffffff) % 1000000;",
+                  "    return binario.toString().padStart(6, '0');",
+                  "}",
+                  "pm.collectionVariables.set('totp', totp(pm.collectionVariables.get('adminSecreto')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login/segundo-factor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                "segundo-factor"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"desafio\": \"{{desafio}}\",\n  \"codigo\": \"{{totp}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Catálogo",
+      "description": "Empresas, edificios, planos, espacios y su disponibilidad.",
+      "item": [
+        {
+          "name": "Empresas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('empresaId', pm.response.json()[0].id);",
+                  "pm.test('hay empresas', () => pm.expect(pm.response.json()).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "empresas"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Empresas sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "empresas"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Empresa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('es la pedida', () => pm.expect(pm.response.json().empresa.id).to.eql(Number(pm.collectionVariables.get('empresaId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "empresas",
+                "{{empresaId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Empresa inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "empresas",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Edificios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('edificioId', pm.response.json()[0].id);",
+                  "pm.collectionVariables.set('pisoId', pm.response.json()[0].pisos[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/edificios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edificios"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Edificios con token inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer no.es.un.token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/edificios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edificios"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Edificio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('trae sus pisos', () => pm.expect(pm.response.json().pisos).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/edificios/{{edificioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edificios",
+                "{{edificioId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Edificio inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/edificios/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "edificios",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Plano del piso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('espacioId', pm.response.json().espacios[0].id);",
+                  "pm.test('el resumen suma los espacios', () => { const j = pm.response.json(); pm.expect(j.resumen.libres + j.resumen.ocupados + j.resumen.bloqueados).to.eql(j.espacios.length); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pisos/{{pisoId}}/plano?fecha={{proximoHabil}}&desde=10:00&hasta=11:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pisos",
+                "{{pisoId}}",
+                "plano"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                },
+                {
+                  "key": "desde",
+                  "value": "10:00"
+                },
+                {
+                  "key": "hasta",
+                  "value": "11:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Plano con horario invertido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pisos/{{pisoId}}/plano?fecha={{proximoHabil}}&desde=12:00&hasta=10:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pisos",
+                "{{pisoId}}",
+                "plano"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                },
+                {
+                  "key": "desde",
+                  "value": "12:00"
+                },
+                {
+                  "key": "hasta",
+                  "value": "10:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Espacios del piso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('incluye el espacio del plano', () => pm.expect(pm.response.json().map(e => e.id)).to.include(Number(pm.collectionVariables.get('espacioId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pisos/{{pisoId}}/espacios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pisos",
+                "{{pisoId}}",
+                "espacios"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Espacios de un piso inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pisos/999999/espacios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pisos",
+                "999999",
+                "espacios"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Espacio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('tiene precio por hora', () => pm.expect(pm.response.json().precioHora).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/{{espacioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "{{espacioId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Espacio inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Agenda del espacio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('trae ocupaciones', () => pm.expect(pm.response.json().ocupaciones).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/{{espacioId}}/agenda?desde={{proximoHabil}}&hasta={{proximoHabil}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "{{espacioId}}",
+                "agenda"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "{{proximoHabil}}"
+                },
+                {
+                  "key": "hasta",
+                  "value": "{{proximoHabil}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Agenda con rango invertido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/{{espacioId}}/agenda?desde={{proximoHabil}}&hasta=2000-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "{{espacioId}}",
+                "agenda"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "{{proximoHabil}}"
+                },
+                {
+                  "key": "hasta",
+                  "value": "2000-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Franjas libres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "function sumar(local, minutos) { return new Date(new Date(local + 'Z').getTime() + minutos * 60000).toISOString().slice(0, 19); }",
+                  "const huecos = pm.response.json();",
+                  "const largo = huecos.find(h => new Date(h.fin.slice(0, 19) + 'Z') - new Date(h.inicio.slice(0, 19) + 'Z') >= 7200000) || huecos[0];",
+                  "const inicio = largo.inicio.slice(0, 19);",
+                  "pm.collectionVariables.set('franjaInicio', inicio);",
+                  "pm.collectionVariables.set('franjaFin', sumar(inicio, 60));",
+                  "pm.collectionVariables.set('franja2Inicio', sumar(inicio, 60));",
+                  "pm.collectionVariables.set('franja2Fin', sumar(inicio, 120));",
+                  "pm.test('hay franjas', () => pm.expect(pm.response.json()).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/{{espacioId}}/franjas-libres?fecha={{proximoHabil}}&duracion=60",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "{{espacioId}}",
+                "franjas-libres"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                },
+                {
+                  "key": "duracion",
+                  "value": "60"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Franjas libres de un espacio inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/espacios/999999/franjas-libres?fecha={{proximoHabil}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "espacios",
+                "999999",
+                "franjas-libres"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Medios de pago",
+      "description": "Tarjetas del cliente: solo se guardan los últimos cuatro dígitos.",
+      "item": [
+        {
+          "name": "Agregar tarjeta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('medioId', pm.response.json().id);",
+                  "pm.test('guarda solo los últimos cuatro', () => pm.expect(pm.response.json().ultimos4).to.eql('1111'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titular\": \"CLIENTE POSTMAN\",\n  \"numeroTarjeta\": \"4111 1111 1111 1111\",\n  \"vencimiento\": \"12/35\",\n  \"codigoSeguridad\": \"123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Agregar tarjeta vencida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titular\": \"CLIENTE POSTMAN\",\n  \"numeroTarjeta\": \"4111 1111 1111 1111\",\n  \"vencimiento\": \"01/20\",\n  \"codigoSeguridad\": \"123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mis tarjetas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('la primera es la principal', () => pm.expect(pm.response.json()[0].principal).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Mis tarjetas sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Editar tarjeta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cambió el titular', () => pm.expect(pm.response.json().titular).to.eql('TITULAR EDITADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/{{medioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "{{medioId}}"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titular\": \"TITULAR EDITADO\",\n  \"vencimiento\": \"10/36\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Editar tarjeta inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "999999"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titular\": \"TITULAR EDITADO\",\n  \"vencimiento\": \"10/36\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Marcar principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/{{medioId}}/principal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "{{medioId}}",
+                "principal"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Marcar principal inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/999999/principal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "999999",
+                "principal"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Reservas",
+      "description": "El cliente reserva una franja libre.",
+      "item": [
+        {
+          "name": "Reservar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reservaId', pm.response.json().id);",
+                  "pm.test('queda pendiente de cobro', () => pm.expect(pm.response.json().estado).to.eql('PENDIENTE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franjaInicio}}\",\n  \"fin\": \"{{franjaFin}}\",\n  \"medioPagoId\": \"{{medioId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reservar una franja tomada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franjaInicio}}\",\n  \"fin\": \"{{franjaFin}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reservar sin espacio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inicio\": \"{{franjaInicio}}\",\n  \"fin\": \"{{franjaFin}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mis reservas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('está la nueva', () => pm.expect(pm.response.json().proximas.map(r => r.id)).to.include(Number(pm.collectionVariables.get('reservaId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/mias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "mias"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Mis reservas sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/mias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "mias"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Detalle de la reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('se puede cancelar', () => pm.expect(pm.response.json().cancelable).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/{{reservaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "{{reservaId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Detalle de una reserva inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Usuarios",
+      "description": "Perfil propio y listado para el administrador.",
+      "item": [
+        {
+          "name": "Mi perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('es el usuario confirmado', () => pm.expect(pm.response.json().email).to.eql(pm.environment.get('nuevoEmail')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Mi perfil sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Editar mi teléfono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('quedó el nuevo', () => pm.expect(pm.response.json().telefono).to.eql('+54 11 4444 1111'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"+54 11 4444 1111\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Editar con teléfono inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"abc\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Perfil del administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Listado de usuarios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('incluye al cliente', () => pm.expect(pm.response.json().map(u => u.email)).to.include(pm.environment.get('nuevoEmail')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Listado de usuarios como cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 403', () => pm.response.to.have.status(403));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Administración",
+      "description": "Reservas, agenda, clientes, bloqueos y auditoría.",
+      "item": [
+        {
+          "name": "Listado de reservas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('encuentra la del cliente', () => pm.expect(pm.response.json().totalElements).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas?q={{nuevoEmail}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{nuevoEmail}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listado de reservas como cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 403', () => pm.response.to.have.status(403));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Agenda del piso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('trae los espacios del piso', () => pm.expect(pm.response.json().espacios).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/agenda?pisoId={{pisoId}}&fecha={{proximoHabil}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "agenda"
+              ],
+              "query": [
+                {
+                  "key": "pisoId",
+                  "value": "{{pisoId}}"
+                },
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Agenda sin piso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/agenda?fecha={{proximoHabil}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "agenda"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{proximoHabil}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar clientes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('lo encuentra', () => pm.expect(pm.response.json()[0].id).to.eql(Number(pm.collectionVariables.get('nuevoId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes?q={{nuevoEmail}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{nuevoEmail}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar clientes como cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 403', () => pm.response.to.have.status(403));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Confirmar la reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('queda confirmada', () => pm.expect(pm.response.json().estado).to.eql('CONFIRMADA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas/{{reservaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas",
+                "{{reservaId}}"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{nuevoId}}\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franjaInicio}}\",\n  \"fin\": \"{{franjaFin}}\",\n  \"motivo\": \"Confirmada por la administración\",\n  \"estado\": \"CONFIRMADA\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Volver la reserva a pendiente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "pm.test('transición inválida', () => pm.expect(pm.response.json().code).to.eql('TRANSICION_INVALIDA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas/{{reservaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas",
+                "{{reservaId}}"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{nuevoId}}\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franjaInicio}}\",\n  \"fin\": \"{{franjaFin}}\",\n  \"motivo\": \"Confirmada por la administración\",\n  \"estado\": \"PENDIENTE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reservar para un cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('adminReservaId', pm.response.json().id);",
+                  "pm.test('figura creada por el admin', () => pm.expect(pm.response.json().creadaPorAdmin).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{nuevoId}}\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franja2Inicio}}\",\n  \"fin\": \"{{franja2Fin}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reservar para un administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{adminId}}\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{franja2Inicio}}\",\n  \"fin\": \"{{franja2Fin}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas/{{adminReservaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas",
+                "{{adminReservaId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Eliminar reserva inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reservas/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reservas",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Bloquear un espacio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('bloqueoId', pm.response.json().bloqueos[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alcance\": \"ESPACIO\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{diaLejano}}T09:00:00\",\n  \"fin\": \"{{diaLejano}}T13:00:00\",\n  \"motivo\": \"MANTENIMIENTO\",\n  \"detalle\": \"Pintura\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bloquear fuera de los bloques de 30 minutos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alcance\": \"ESPACIO\",\n  \"espacioId\": \"{{espacioId}}\",\n  \"inicio\": \"{{diaLejano}}T14:10:00\",\n  \"fin\": \"{{diaLejano}}T15:00:00\",\n  \"motivo\": \"MANTENIMIENTO\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bloqueos vigentes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('incluye el nuevo', () => pm.expect(pm.response.json().map(b => b.id)).to.include(Number(pm.collectionVariables.get('bloqueoId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Bloqueos como cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 403', () => pm.response.to.have.status(403));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Eliminar bloqueo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos/{{bloqueoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos",
+                "{{bloqueoId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Eliminar bloqueo inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bloqueos/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bloqueos",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Auditoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('registró el ingreso del admin', () => pm.expect(pm.response.json().content).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/auditoria?evento=LOGIN_SEGUNDO_FACTOR",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "evento",
+                  "value": "LOGIN_SEGUNDO_FACTOR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Auditoría como cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 403', () => pm.response.to.have.status(403));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/auditoria",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "auditoria"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Cancelación",
+      "description": "El cliente cancela su reserva confirmada.",
+      "item": [
+        {
+          "name": "Cancelar la reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('queda cancelada', () => pm.expect(pm.response.json().estado).to.eql('CANCELADA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/{{reservaId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "{{reservaId}}",
+                "cancelar"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Cancelar una reserva ya cancelada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "pm.test('no es cancelable', () => pm.expect(pm.response.json().code).to.eql('RESERVA_NO_CANCELABLE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservas/{{reservaId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservas",
+                "{{reservaId}}",
+                "cancelar"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Eliminar tarjeta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/{{medioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "{{medioId}}"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Eliminar tarjeta inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me/medios-pago/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me",
+                "medios-pago",
+                "999999"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Sesión",
+      "description": "Cambio de clave y cierre de sesión.",
+      "item": [
+        {
+          "name": "Cambiar la clave con la actual incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"passwordActual\": \"Incorrecta-123\",\n  \"passwordNueva\": \"Cambiada-2026-Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cambiar la clave",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('nuevoToken', pm.response.json().token);",
+                  "const c = (pm.response.headers.get('Set-Cookie') || '').match(/pl_refresh=([^;]+)/); if (c) { pm.collectionVariables.set('nuevoRefresh', c[1]); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"passwordActual\": \"{{nuevoClave}}\",\n  \"passwordNueva\": \"Cambiada-2026-Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cerrar sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              },
+              {
+                "key": "Cookie",
+                "value": "pl_refresh={{nuevoRefresh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "El token cerrado ya no sirve",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nuevoToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Cerrar sesión con un método no permitido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
