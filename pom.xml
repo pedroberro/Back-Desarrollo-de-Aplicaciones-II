@@ -180,13 +180,14 @@
                         </goals>
                         <configuration>
                             <haltOnFailure>${cobertura.exigir}</haltOnFailure>
+                            <!-- Filters the classes the check looks at; the rule then applies to them as a whole. -->
+                            <includes>
+                                <include>com/daii/backdaii/domain/**</include>
+                                <include>com/daii/backdaii/service/**</include>
+                            </includes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
-                                    <includes>
-                                        <include>com/daii/backdaii/domain/**</include>
-                                        <include>com/daii/backdaii/service/**</include>
-                                    </includes>
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
