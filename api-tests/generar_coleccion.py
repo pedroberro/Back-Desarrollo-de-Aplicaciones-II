@@ -131,7 +131,9 @@ autenticacion = carpeta("02 Autenticación", "Registro, confirmación, inicio de
     pedido("Restablecer con link inválido", "POST", "/api/auth/reset-password", 400,
            cuerpo={"token": "no-existe", "nuevaPassword": "Restablecida-2026-Postman"}),
     pedido("Renovar la sesión", "POST", "/api/auth/refresh", 200, headers={"Cookie": "pl_refresh={{demoRefresh}}"},
-           pruebas=guardar("demoToken", "pm.response.json().token") + "\n" + REFRESH.format(var="demoRefresh")),
+           pruebas=guardar("demoToken", "pm.response.json().token") + "\n" + REFRESH.format(var="demoRefresh")
+           # Exported with the environment for the contract tests that run after the collection.
+           + "\npm.environment.set('demoToken', pm.response.json().token);"),
     pedido("Renovar sin sesión", "POST", "/api/auth/refresh", 401, mensaje=False, sin_cookies=True,
            pruebas="pm.test('sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"),
     pedido("Login de administrador", "POST", "/api/auth/login", 200, cuerpo={"email": "{{adminEmail}}", "password": "{{adminPassword}}"},
@@ -143,7 +145,7 @@ autenticacion = carpeta("02 Autenticación", "Registro, confirmación, inicio de
            pruebas="pm.test('código CODIGO_INCORRECTO', () => pm.expect(pm.response.json().code).to.eql('CODIGO_INCORRECTO'));"),
     pedido("Segundo factor", "POST", "/api/auth/login/segundo-factor", 200, pre=TOTP,
            cuerpo={"desafio": "{{desafio}}", "codigo": "{{totp}}"},
-           pruebas=guardar("adminToken", "pm.response.json().token")),
+           pruebas=guardar("adminToken", "pm.response.json().token") + "\npm.environment.set('adminToken', pm.response.json().token);"),
 ])
 
 catalogo = carpeta("03 Catálogo", "Empresas, edificios, planos, espacios y su disponibilidad.", [

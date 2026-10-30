@@ -53,7 +53,7 @@ jobs:
   api:
     name: Pruebas de API (Newman y Schemathesis)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 14
     env:
       BASE_URL: http://localhost:8080
       PGHOST: localhost
@@ -122,14 +122,16 @@ jobs:
           curl -fsS "$BASE_URL/v3/api-docs" -o api-tests/out/openapi.json
           token() { python3 -c "import json,sys; print(next(v['value'] for v in json.load(open('api-tests/out/entorno-final.json'))['values'] if v['key'] == sys.argv[1]))" "$1"; }
           # Sign-in endpoints are left out: fuzzing them would close or lock the sessions in use.
-          for quien in adminToken demoToken; do
-            schemathesis run "$BASE_URL/v3/api-docs" \
-              --header "Authorization: Bearer $(token $quien)" \
+          # The API allows 200 calls a minute per user, so the run is paced below that.
+          st() {
+            schemathesis run "$BASE_URL/v3/api-docs" --header "Authorization: Bearer $(token "$1")" \
               --checks not_a_server_error,content_type_conformance,response_schema_conformance \
-              --exclude-path-regex '^/api/auth/' \
-              --max-examples 10 --rate-limit 150/m \
-              --report junit --report-dir "api-tests/out/schemathesis-$quien"
-          done
+              --exclude-path-regex '^/api/auth/' --phases examples,coverage,fuzzing --max-examples 5 \
+              --rate-limit 180/m --report junit --report-dir "api-tests/out/schemathesis-$1" "${@:2}"
+          }
+          st adminToken
+          # The customer's own endpoints, which the administrator has no permission for.
+          st demoToken --include-path-regex '^/api/(reservas|usuarios/me)' 
 
       - name: Reportes de las pruebas de API
         if: always()

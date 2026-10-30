@@ -713,7 +713,8 @@
                 "exec": [
                   "pm.test('responde 200', () => pm.response.to.have.status(200));",
                   "pm.collectionVariables.set('demoToken', pm.response.json().token);",
-                  "const c = (pm.response.headers.get('Set-Cookie') || '').match(/pl_refresh=([^;]+)/); if (c) { pm.collectionVariables.set('demoRefresh', c[1]); }"
+                  "const c = (pm.response.headers.get('Set-Cookie') || '').match(/pl_refresh=([^;]+)/); if (c) { pm.collectionVariables.set('demoRefresh', c[1]); }",
+                  "pm.environment.set('demoToken', pm.response.json().token);"
                 ]
               }
             }
@@ -897,7 +898,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('responde 200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);",
+                  "pm.environment.set('adminToken', pm.response.json().token);"
                 ]
               }
             },

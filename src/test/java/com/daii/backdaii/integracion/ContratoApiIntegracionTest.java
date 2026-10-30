@@ -42,6 +42,16 @@ class ContratoApiIntegracionTest extends IntegracionBase {
                 .andExpect(status().isUnsupportedMediaType());
     }
 
+    /** Found by Schemathesis: a multipart Content-Type without its boundary answered 500. */
+    @Test
+    void unPedidoMultipartNoEsUnErrorDelServidor() throws Exception {
+        mvc.perform(get("/api/health").contentType("multipart/form-data"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/reservas").with(como("cualquiera@pruebas.local", Rol.CLIENTE))
+                        .contentType("multipart/form-data").content("x"))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
     @Test
     void unaRespuestaQueElClienteNoAceptaNoTraeCuerpo() throws Exception {
         mvc.perform(get("/api/empresas").with(como("cualquiera@pruebas.local", Rol.CLIENTE))

@@ -13,6 +13,11 @@ spring:
   application:
     name: back-daii
 
+  # The API never receives files: a multipart request is rejected instead of parsed.
+  servlet:
+    multipart:
+      enabled: false
+
   # Local secrets (e.g. MAIL_PASSWORD) live in back/.env, which git ignores. See .env.example.
   config:
     import: optional:file:.env[.properties]
