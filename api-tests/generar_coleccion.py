@@ -58,7 +58,8 @@ def guardar(var, expresion):
     return f"pm.collectionVariables.set('{var}', {expresion});"
 
 
-def pedido(nombre, metodo, ruta, estado, token=None, cuerpo=None, query=None, pruebas="", pre="", headers=None, mensaje=True):
+def pedido(nombre, metodo, ruta, estado, token=None, cuerpo=None, query=None, pruebas="", pre="", headers=None, mensaje=True,
+           sin_cookies=False):
     script = [f"pm.test('responde {estado}', () => pm.response.to.have.status({estado}));"]
     if estado >= 400 and mensaje:
         script.append("pm.test('el error trae mensaje', () => pm.expect(pm.response.json().message).to.be.a('string'));")
@@ -74,6 +75,9 @@ def pedido(nombre, metodo, ruta, estado, token=None, cuerpo=None, query=None, pr
                                                                      "host": ["{{baseUrl}}"], "path": ruta.strip("/").split("/"),
                                                                      "query": [{"key": k, "value": v} for k, v in (query or {}).items()]}},
     }
+    if sin_cookies:
+        # Postman and Newman keep a cookie jar: this request must go without the session cookie.
+        item["protocolProfileBehavior"] = {"disableCookies": True}
     if pre:
         item["event"].append({"listen": "prerequest", "script": {"type": "text/javascript", "exec": pre.strip().split("\n")}})
     if cuerpo is not None:
@@ -128,7 +132,7 @@ autenticacion = carpeta("02 Autenticación", "Registro, confirmación, inicio de
            cuerpo={"token": "no-existe", "nuevaPassword": "Restablecida-2026-Postman"}),
     pedido("Renovar la sesión", "POST", "/api/auth/refresh", 200, headers={"Cookie": "pl_refresh={{demoRefresh}}"},
            pruebas=guardar("demoToken", "pm.response.json().token") + "\n" + REFRESH.format(var="demoRefresh")),
-    pedido("Renovar sin sesión", "POST", "/api/auth/refresh", 401, mensaje=False,
+    pedido("Renovar sin sesión", "POST", "/api/auth/refresh", 401, mensaje=False, sin_cookies=True,
            pruebas="pm.test('sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"),
     pedido("Login de administrador", "POST", "/api/auth/login", 200, cuerpo={"email": "{{adminEmail}}", "password": "{{adminPassword}}"},
            pruebas="pm.test('pide segundo factor', () => pm.expect(pm.response.json().segundoFactorRequerido).to.eql(true));\n"
