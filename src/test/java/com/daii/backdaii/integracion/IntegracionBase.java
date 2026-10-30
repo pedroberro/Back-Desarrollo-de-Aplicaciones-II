@@ -1,10 +1,18 @@
 package com.daii.backdaii.integracion;
 
+import com.daii.backdaii.domain.enums.Rol;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.List;
+import java.util.stream.Stream;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 /**
  * Whole application against a real PostgreSQL in a container, migrated by Flyway exactly as in
@@ -30,5 +38,18 @@ public abstract class IntegracionBase {
 
     static {
         POSTGRES.start();
+    }
+
+    /** Signed in as {@code email} with the same authorities the application gives the role. */
+    static RequestPostProcessor como(String email, Rol rol) {
+        List<SimpleGrantedAuthority> autoridades = Stream.concat(Stream.of("ROLE_" + rol.name()),
+                        rol.getPermisos().stream().map(Enum::name))
+                .map(SimpleGrantedAuthority::new)
+                .toList();
+        return user(email).authorities(autoridades);
+    }
+
+    static RequestPostProcessor comoAdmin() {
+        return como(Escenario.ADMIN, Rol.ADMIN);
     }
 }
