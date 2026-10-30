@@ -90,6 +90,20 @@ El reporte de cobertura queda en `target/site/jacoco/index.html`. El pipeline de
 configurado SonarCloud (variables `SONAR_ORGANIZATION` y `SONAR_PROJECT_KEY` y el secreto
 `SONAR_TOKEN`), también publica el análisis ahí.
 
+### Pruebas de API
+
+El contrato de la API (OpenAPI 3) se publica en http://localhost:8080/v3/api-docs.
+
+- [api-tests/PlantaLibre.postman_collection.json](api-tests/PlantaLibre.postman_collection.json): colección
+  de Postman con cada endpoint en un caso de éxito y uno de error. Los pedidos se corren en orden porque se
+  pasan ids y tokens. Se regenera con `python3 api-tests/generar_coleccion.py`.
+- [api-tests/preparar-datos.sh](api-tests/preparar-datos.sh): prepara una API recién levantada (links de
+  confirmación y recuperación, clave del administrador) y escribe el entorno de Postman con valores
+  aleatorios de esa corrida.
+
+El pipeline levanta la API contra PostgreSQL, corre la colección con Newman y después valida las
+respuestas contra el contrato con Schemathesis. Los reportes quedan en el artefacto `pruebas-api`.
+
 Si el frontend está clonado en otra carpeta, se indica con `FRONT_CONTEXT` (también se puede
 dejar en `.env`):
 
