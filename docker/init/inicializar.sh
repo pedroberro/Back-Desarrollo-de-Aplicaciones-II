@@ -7,8 +7,6 @@
 # Both are generated only once: later runs reuse what is there.
 set -eu
 
-apk add --no-cache openssl >/dev/null
-
 SECRETOS=/secretos
 CERTS=/certs
 mkdir -p "$SECRETOS" "$CERTS"

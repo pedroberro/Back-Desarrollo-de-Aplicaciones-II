@@ -16,5 +16,6 @@ curl -fsS -u "$AUTH" -X PUT -H "$JSON" "$API/users/planta-libre-api" \
 # Only its own exchanges and queues (planta-libre.*), in its own vhost.
 curl -fsS -u "$AUTH" -X PUT -H "$JSON" "$API/permissions/planta-libre/planta-libre-api" \
   -d '{"configure":"^planta-libre\\..*","write":"^planta-libre\\..*","read":"^planta-libre\\..*"}'
-curl -sS -u "$AUTH" -X DELETE "$API/users/guest" || true
+# Normally absent already (RABBITMQ_DEFAULT_USER is set): a 404 here is fine.
+curl -s -o /dev/null -u "$AUTH" -X DELETE "$API/users/guest" || true
 echo "RabbitMQ: vhost planta-libre y usuario planta-libre-api listos"

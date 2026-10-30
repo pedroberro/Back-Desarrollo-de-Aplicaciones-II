@@ -25,7 +25,7 @@ cuando el log muestra `Started BackDaiiApplication`.
 
 | Qué | Dirección |
 | --- | --- |
-| Aplicación web | http://localhost:3000 |
+| Aplicación web | http://localhost:8088 |
 | API (chequeo de salud) | http://localhost:8080/api/health |
 | Consola de RabbitMQ | http://localhost:15672 (usuario `planta-libre-admin`) |
 
@@ -37,6 +37,13 @@ Qué levanta `docker compose up`:
 3. `rabbitmq` y `rabbitmq-usuarios`: el broker, solo con TLS y con un usuario propio para la app.
 4. `back`: la API, con el cobro asincrónico activado.
 5. `front`: la aplicación web, servida por nginx, que reenvía `/api` al backend.
+
+Si alguno de esos puertos ya está ocupado en la máquina, se cambia al levantar (también se puede
+dejar en `.env`):
+
+```bash
+FRONT_PUERTO=9000 API_PUERTO=9080 docker compose up --build
+```
 
 Para apagarlo: `docker compose down`. Para empezar de cero (borra la base y los secretos
 generados): `docker compose down -v`.

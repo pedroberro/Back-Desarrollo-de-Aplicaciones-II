@@ -2,9 +2,10 @@
 #
 #   docker compose up --build
 #
-# Then: web app http://localhost:3000 · API http://localhost:8080/api/health
+# Then: web app http://localhost:8088 · API http://localhost:8080/api/health
 #       RabbitMQ console http://localhost:15672 (user planta-libre-admin)
 # See README.md for the demo accounts and how to read the generated passwords.
+# Ports already taken on the host: FRONT_PUERTO=9000 API_PUERTO=9080 docker compose up --build
 #
 # Secrets are generated on the first run by the `init` service (random, in the `secretos` volume)
 # and never live in the repository (SEC-10). A developer's .env may set any of them instead.
@@ -14,7 +15,8 @@
 services:
   # One-shot: secrets and the broker's TLS certificates, then exits.
   init:
-    image: alpine:3.20
+    # Same image as the broker: it already ships openssl, so nothing is downloaded at startup.
+    image: rabbitmq:3.13-management
     environment:
       DB_PASSWORD: ${DB_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-}
@@ -101,13 +103,13 @@ services:
       MENSAJERIA_HABILITADA: "true"
       SPRING_RABBITMQ_SSL_BUNDLE: rabbitmq
       SPRING_SSL_BUNDLE_PEM_RABBITMQ_TRUSTSTORE_CERTIFICATE: file:/certs/ca.pem
-      FRONTEND_URL: http://localhost:3000
-      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      FRONTEND_URL: http://localhost:${FRONT_PUERTO:-8088}
+      CORS_ALLOWED_ORIGINS: http://localhost:${FRONT_PUERTO:-8088}
       # No mail credentials locally: confirmation and recovery links are printed in the log.
       MAIL_LOG_LINKS: "true"
       SHOW_SQL: "false"
     ports:
-      - "8080:8080"
+      - "${API_PUERTO:-8080}:8080"
     volumes:
       - secretos:/secretos:ro
       - ./docker/rabbitmq/certs:/certs:ro
@@ -124,7 +126,7 @@ services:
       back:
         condition: service_healthy
     ports:
-      - "3000:80"
+      - "${FRONT_PUERTO:-8088}:80"
 
 volumes:
   secretos:
