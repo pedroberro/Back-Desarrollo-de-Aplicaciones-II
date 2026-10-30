@@ -161,6 +161,8 @@
                     <effort>Max</effort>
                     <threshold>High</threshold>
                     <xmlOutput>true</xmlOutput>
+                    <!-- Reviewed false positives, each one justified in the file. -->
+                    <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                     <plugins>
                         <plugin>
                             <groupId>com.h3xstream.findsecbugs</groupId>
