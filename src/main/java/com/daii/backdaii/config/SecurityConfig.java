@@ -1,6 +1,8 @@
 package com.daii.backdaii.config;
 
 import com.daii.backdaii.exception.ErrorResponse;
+import com.daii.backdaii.exception.Problemas;
+import jakarta.servlet.http.HttpServletRequest;
 import com.daii.backdaii.domain.enums.EventoAuditoria;
 import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.security.JwtAuthenticationFilter;
@@ -84,11 +86,11 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, e) ->
-                                writeError(response, HttpStatus.UNAUTHORIZED, "No autenticado"))
+                                writeError(request, response, HttpStatus.UNAUTHORIZED, "No autenticado"))
                         .accessDeniedHandler((request, response, e) -> {
                             auditoria.registrar(EventoAuditoria.ACCESO_DENEGADO, ResultadoAuditoria.DENEGADO,
                                     request.getRemoteUser(), request.getMethod() + " " + request.getRequestURI());
-                            writeError(response, HttpStatus.FORBIDDEN, "No tenés permiso para esta acción");
+                            writeError(request, response, HttpStatus.FORBIDDEN, "No tenés permiso para esta acción");
                         })
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -98,11 +100,9 @@ public class SecurityConfig {
     }
 
     // Security errors happen before the controllers, so GlobalExceptionHandler never sees them.
-    private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
-        response.setStatus(status.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getWriter(), new ErrorResponse(message));
+    private void writeError(HttpServletRequest request, HttpServletResponse response, HttpStatus status, String message)
+            throws IOException {
+        Problemas.escribir(response, objectMapper, status, request.getRequestURI(), new ErrorResponse(message));
     }
 
     @Bean

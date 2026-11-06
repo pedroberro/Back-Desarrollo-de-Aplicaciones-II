@@ -96,7 +96,9 @@ class TransicionesReservaIntegracionTest extends IntegracionBase {
 
         editarComoAdmin(reserva, destino)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("TRANSICION_INVALIDA"));
+                .andExpect(jsonPath("$.code").value("TRANSICION_INVALIDA"))
+                .andExpect(jsonPath("$.type").value("urn:planta-libre:problema:TRANSICION_INVALIDA"))
+                .andExpect(jsonPath("$.status").value(409));
 
         assertThat(escenario.estadoGuardado(reserva.getId())).isEqualTo(guardado);
     }

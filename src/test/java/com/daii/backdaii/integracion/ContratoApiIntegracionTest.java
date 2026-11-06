@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,7 +26,31 @@ class ContratoApiIntegracionTest extends IntegracionBase {
                 .andExpect(jsonPath("$.paths['/api/reservas'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/admin/reservas/{id}'].put.responses['409']").exists())
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.message").exists());
+                .andExpect(jsonPath("$.components.schemas.Problema.properties.detail").exists())
+                .andExpect(jsonPath("$.paths['/api/admin/reservas/{id}'].put.responses['409'].content['application/problem+json']").exists());
+    }
+
+    @Test
+    void losErroresSiguenProblemDetails() throws Exception {
+        mvc.perform(get("/api/empresas/{id}", 999_999L).with(como("cualquiera@pruebas.local", Rol.CLIENTE)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.title").value("No encontrado"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").exists())
+                .andExpect(jsonPath("$.instance").value("/api/empresas/999999"))
+                // The front keeps reading message.
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    void losErroresDeSeguridadTambienSiguenProblemDetails() throws Exception {
+        mvc.perform(get("/api/empresas"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.instance").value("/api/empresas"));
     }
 
     @Test
