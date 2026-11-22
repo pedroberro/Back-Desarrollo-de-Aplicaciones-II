@@ -3,6 +3,7 @@ package com.daii.backdaii.domain.repository;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.enums.Rol;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,6 +13,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+
+    /** All accounts for the administrator, in stable id order and one page at a time. */
+    Page<Usuario> findAllByOrderById(Pageable pageable);
 
     Optional<Usuario> findByEmail(String email);
 

@@ -2904,7 +2904,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('responde 200', () => pm.response.to.have.status(200));",
-                  "pm.test('incluye al cliente', () => pm.expect(pm.response.json().map(u => u.email)).to.include(pm.environment.get('nuevoEmail')));"
+                  "pm.test('devuelve 10 usuarios y metadatos', () => { const body = pm.response.json(); pm.expect(body.content).to.have.length(10); pm.expect(body.page).to.eql(0); pm.expect(body.size).to.eql(10); pm.expect(body.totalElements).to.be.a('number'); pm.expect(body.totalPages).to.be.a('number'); });",
+                  "pm.test('incluye al cliente', () => pm.expect(pm.response.json().content.map(u => u.email)).to.include(pm.environment.get('nuevoEmail')));"
                 ]
               }
             }
@@ -2918,7 +2919,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/usuarios",
+              "raw": "{{baseUrl}}/api/usuarios?page=0&size=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2926,8 +2927,35 @@
                 "api",
                 "usuarios"
               ],
-              "query": []
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
             }
+          }
+        },
+        {
+          "name": "Listado de usuarios: página inexistente",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('contenido vacío', () => pm.expect(pm.response.json().content).to.be.an('array').that.is.empty);"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/usuarios?page=100000&size=10", "host": ["{{baseUrl}}"], "path": ["api", "usuarios"], "query": [{ "key": "page", "value": "100000" }, { "key": "size", "value": "10" }] }
+          }
+        },
+        {
+          "name": "Listado de usuarios: size máximo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('responde 200', () => pm.response.to.have.status(200));",
+            "pm.test('size se limita a 100', () => pm.expect(pm.response.json().size).to.eql(100));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/usuarios?page=0&size=100000", "host": ["{{baseUrl}}"], "path": ["api", "usuarios"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "100000" }] }
           }
         },
         {

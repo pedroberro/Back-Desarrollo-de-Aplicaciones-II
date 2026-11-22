@@ -5,6 +5,7 @@ import com.daii.backdaii.domain.enums.ResultadoAuditoria;
 import com.daii.backdaii.service.AuditoriaService;
 import com.daii.backdaii.domain.entity.Usuario;
 import com.daii.backdaii.domain.repository.UsuarioRepository;
+import com.daii.backdaii.dto.usuario.PaginaUsuarios;
 import com.daii.backdaii.dto.usuario.UpdateMeRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 import com.daii.backdaii.exception.NotFoundException;
@@ -12,15 +13,17 @@ import com.daii.backdaii.mapper.UsuarioMapper;
 import com.daii.backdaii.service.Precondicion;
 import com.daii.backdaii.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UsuarioServiceImpl implements UsuarioService {
+
+    private static final int TAMANIO_MAXIMO = 100;
+    private static final int PAGINA_MAXIMA = 100_000;
 
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
@@ -50,9 +53,10 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UsuarioDTO> listar() {
-        return usuarioRepository.findAll(Sort.by("id")).stream()
-                .map(usuarioMapper::toDTO)
-                .toList();
+    public PaginaUsuarios listar(int pagina, int tamanio) {
+        Page<Usuario> resultado = usuarioRepository.findAllByOrderById(PageRequest.of(
+                Math.clamp(pagina, 0, PAGINA_MAXIMA), Math.clamp(tamanio, 1, TAMANIO_MAXIMO)));
+        return new PaginaUsuarios(resultado.getContent().stream().map(usuarioMapper::toDTO).toList(),
+                resultado.getNumber(), resultado.getSize(), resultado.getTotalElements(), resultado.getTotalPages());
     }
 }

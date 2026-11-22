@@ -1,5 +1,6 @@
 package com.daii.backdaii.controller;
 
+import com.daii.backdaii.dto.usuario.PaginaUsuarios;
 import com.daii.backdaii.dto.usuario.UpdateMeRequest;
 import com.daii.backdaii.dto.usuario.UsuarioDTO;
 import com.daii.backdaii.service.UsuarioService;
@@ -14,8 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 /** Presentation layer of the users component: the signed-in user's profile and the admin listing. */
 @RestController
 @RequestMapping("/api/usuarios")
@@ -28,8 +27,9 @@ public class UsuarioController {
     // Sensitive: exposes every account. Declarative rule, checked by Spring Security before the method runs.
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UsuarioDTO>> listar() {
-        return ResponseEntity.ok(usuarioService.listar());
+    public ResponseEntity<PaginaUsuarios> listar(@RequestParam(defaultValue = "0") int page,
+                                                 @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(usuarioService.listar(page, size));
     }
 
     @GetMapping("/me")

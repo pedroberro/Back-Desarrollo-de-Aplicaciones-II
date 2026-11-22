@@ -274,7 +274,7 @@ class AutenticacionIntegracionTest extends IntegracionBase {
 
         mvc.perform(get("/api/usuarios").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.email == '" + Escenario.ADMIN + "')]").exists());
+                .andExpect(jsonPath("$.content[?(@.email == '" + Escenario.ADMIN + "')]").exists());
         mvc.perform(get("/api/admin/auditoria").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .param("evento", "LOGIN_SEGUNDO_FACTOR").param("usuario", Escenario.ADMIN))
                 .andExpect(status().isOk())
